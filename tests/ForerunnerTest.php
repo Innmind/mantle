@@ -71,11 +71,11 @@ class ForerunnerTest extends TestCase
             [0, 2, 4, 1, 3, 6, 5, 7, 9, 11],
         ];
         yield [
-            static fn() => new Asynchronous,
+            Asynchronous::of(...),
             [0, 2, 4, 1, 3, 6, 5, 7, 9, 11],
         ];
         yield [
-            static fn() => new Synchronous,
+            Synchronous::of(...),
             [0, 2, 4, 6, 1, 3, 5, 7, 9, 11],
         ];
     }

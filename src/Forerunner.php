@@ -41,6 +41,6 @@ final class Forerunner
      */
     public static function of(callable $strategy = null): self
     {
-        return new self($strategy ?? static fn() => new Asynchronous);
+        return new self($strategy ?? Asynchronous::of(...));
     }
 }
