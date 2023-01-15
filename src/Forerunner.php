@@ -28,7 +28,7 @@ final class Forerunner
         $threads = Sequence::of();
 
         while ($source->active() || !$threads->empty()) {
-            $threads = $source->schedule()->match(
+            $threads = $source->emerge()->match(
                 static fn($thread) => ($threads)($thread),
                 static fn() => $threads,
             );

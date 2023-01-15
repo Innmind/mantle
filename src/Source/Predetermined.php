@@ -36,7 +36,7 @@ final class Predetermined implements Source
         return new self(Sequence::of(...$threads));
     }
 
-    public function schedule(): Maybe
+    public function emerge(): Maybe
     {
         $next = $this
             ->threads

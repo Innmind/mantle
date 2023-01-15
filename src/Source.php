@@ -10,6 +10,6 @@ interface Source
     /**
      * @return Maybe<Thread>
      */
-    public function schedule(): Maybe;
+    public function emerge(): Maybe;
     public function active(): bool;
 }
