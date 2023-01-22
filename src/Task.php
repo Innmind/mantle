@@ -3,7 +3,7 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Continuation\Strategy;
+use Innmind\Mantle\Suspend\Strategy;
 
 final class Task
 {
@@ -15,7 +15,7 @@ final class Task
     }
 
     /**
-     * @param callable(Continuation): void $thread
+     * @param callable(Suspend): void $thread
      */
     public static function of(callable $thread): self
     {
@@ -28,7 +28,7 @@ final class Task
     public function continue(callable $strategy): bool
     {
         if (!$this->fiber->isStarted()) {
-            $this->fiber->start(Continuation::of($strategy()));
+            $this->fiber->start(Suspend::of($strategy()));
         }
 
         if (!$this->fiber->isTerminated()) {

@@ -6,8 +6,8 @@ namespace Tests\Innmind\Mantle;
 use Innmind\Mantle\{
     Forerunner,
     Source,
-    Continuation\Asynchronous,
-    Continuation\Synchronous,
+    Suspend\Asynchronous,
+    Suspend\Synchronous,
 };
 use Innmind\Immutable\Sequence;
 use PHPUnit\Framework\TestCase;

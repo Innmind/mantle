@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace Innmind\Mantle\Continuation;
+namespace Innmind\Mantle\Suspend;
 
 final class Synchronous implements Strategy
 {

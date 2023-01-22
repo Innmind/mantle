@@ -1,11 +1,11 @@
 <?php
 declare(strict_types = 1);
 
-namespace Tests\Innmind\Mantle\Continuation;
+namespace Tests\Innmind\Mantle\Suspend;
 
 use Innmind\Mantle\{
-    Continuation\TimeFrame,
-    Continuation\Strategy,
+    Suspend\TimeFrame,
+    Suspend\Strategy,
 };
 use Innmind\TimeContinuum\{
     Earth\Clock,

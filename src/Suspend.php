@@ -3,9 +3,9 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Continuation\Strategy;
+use Innmind\Mantle\Suspend\Strategy;
 
-final class Continuation
+final class Suspend
 {
     private Strategy $shouldSuspend;
 

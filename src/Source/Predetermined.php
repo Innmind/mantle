@@ -6,7 +6,7 @@ namespace Innmind\Mantle\Source;
 use Innmind\Mantle\{
     Source,
     Task,
-    Continuation,
+    Suspend,
 };
 use Innmind\Immutable\{
     Sequence,
@@ -15,11 +15,11 @@ use Innmind\Immutable\{
 
 final class Predetermined implements Source
 {
-    /** @var Sequence<callable(Continuation): void> */
+    /** @var Sequence<callable(Suspend): void> */
     private Sequence $threads;
 
     /**
-     * @param Sequence<callable(Continuation): void> $threads
+     * @param Sequence<callable(Suspend): void> $threads
      */
     private function __construct(Sequence $threads)
     {
@@ -29,7 +29,7 @@ final class Predetermined implements Source
     /**
      * @no-named-arguments
      *
-     * @param callable(Continuation): void $threads
+     * @param callable(Suspend): void $threads
      */
     public static function of(callable ...$threads): self
     {

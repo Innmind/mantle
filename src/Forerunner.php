@@ -3,7 +3,7 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Continuation\{
+use Innmind\Mantle\Suspend\{
     Strategy,
     Asynchronous,
 };
