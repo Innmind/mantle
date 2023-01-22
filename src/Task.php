@@ -32,12 +32,22 @@ final class Task
     {
         if (!$this->fiber->isStarted()) {
             $this->fiber->start(Suspend::of($strategy()));
+
+            return $this->next();
         }
 
         if (!$this->fiber->isTerminated()) {
             $this->fiber->resume();
         }
 
+        return $this->next();
+    }
+
+    /**
+     * @return Sequence<self>
+     */
+    private function next(): Sequence
+    {
         return match (!$this->fiber->isTerminated()) {
             true => Sequence::of($this),
             false => Sequence::of(),

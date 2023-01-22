@@ -68,11 +68,11 @@ class ForerunnerTest extends TestCase
     {
         yield [
             null,
-            [0, 2, 1, 3, 4, 5, 6, 7, 9, 11],
+            [0, 1, 2, 3, 4, 5, 6, 7, 9, 11],
         ];
         yield [
             Asynchronous::of(...),
-            [0, 2, 1, 3, 4, 5, 6, 7, 9, 11],
+            [0, 1, 2, 3, 4, 5, 6, 7, 9, 11],
         ];
         yield [
             Synchronous::of(...),
