@@ -32,7 +32,7 @@ final class Forerunner
                 static fn($thread) => ($threads)($thread),
                 static fn() => $threads,
             );
-            $threads = $threads->filter(fn($thread) => $thread->continue($this->strategy));
+            $threads = $threads->flatMap(fn($thread) => $thread->continue($this->strategy));
         }
     }
 

@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Innmind\Mantle;
 
 use Innmind\Mantle\Suspend\Strategy;
+use Innmind\Immutable\Sequence;
 
 final class Task
 {
@@ -24,8 +25,10 @@ final class Task
 
     /**
      * @param callable(): Strategy $strategy
+     *
+     * @return Sequence<self> Returns a Sequence for an easier integration in Forerunner
      */
-    public function continue(callable $strategy): bool
+    public function continue(callable $strategy): Sequence
     {
         if (!$this->fiber->isStarted()) {
             $this->fiber->start(Suspend::of($strategy()));
@@ -35,6 +38,9 @@ final class Task
             $this->fiber->resume();
         }
 
-        return !$this->fiber->isTerminated();
+        return match (!$this->fiber->isTerminated()) {
+            true => Sequence::of($this),
+            false => Sequence::of(),
+        };
     }
 }
