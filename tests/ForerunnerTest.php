@@ -27,30 +27,30 @@ class ForerunnerTest extends TestCase
     {
         $queue = new \SplQueue;
         $source = Source\Predetermined::of(
-            static fn($continuation) => Sequence::lazy(static function() use ($continuation) {
+            static fn($suspend) => Sequence::lazy(static function() use ($suspend) {
                 yield 0;
-                $continuation->suspend();
+                $suspend();
                 yield 2;
-                $continuation->suspend();
+                $suspend();
                 yield 4;
-                $continuation->suspend();
+                $suspend();
                 yield 6;
-                $continuation->suspend();
+                $suspend();
             })
                 ->foreach(static fn($i) => $queue->enqueue($i)),
-            static fn($continuation) => Sequence::lazy(static function() use ($continuation) {
+            static fn($suspend) => Sequence::lazy(static function() use ($suspend) {
                 yield 1;
-                $continuation->suspend();
+                $suspend();
                 yield 3;
-                $continuation->suspend();
+                $suspend();
                 yield 5;
-                $continuation->suspend();
+                $suspend();
                 yield 7;
-                $continuation->suspend();
+                $suspend();
                 yield 9;
-                $continuation->suspend();
+                $suspend();
                 yield 11;
-                $continuation->suspend();
+                $suspend();
             })
                 ->foreach(static fn($i) => $queue->enqueue($i)),
         );

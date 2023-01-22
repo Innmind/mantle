@@ -14,15 +14,15 @@ final class Suspend
         $this->shouldSuspend = $shouldSuspend;
     }
 
-    public static function of(Strategy $shouldSuspend): self
-    {
-        return new self($shouldSuspend);
-    }
-
-    public function suspend(): void
+    public function __invoke(): void
     {
         if (($this->shouldSuspend)()) {
             \Fiber::suspend();
         }
+    }
+
+    public static function of(Strategy $shouldSuspend): self
+    {
+        return new self($shouldSuspend);
     }
 }
