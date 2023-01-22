@@ -8,7 +8,7 @@ use Innmind\Immutable\Maybe;
 interface Source
 {
     /**
-     * @return Maybe<Thread>
+     * @return Maybe<Task>
      */
     public function emerge(): Maybe;
     public function active(): bool;

@@ -5,7 +5,7 @@ namespace Innmind\Mantle;
 
 use Innmind\Mantle\Continuation\Strategy;
 
-final class Thread
+final class Task
 {
     private \Fiber $fiber;
 

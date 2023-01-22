@@ -24,7 +24,7 @@ final class Forerunner
 
     public function __invoke(Source $source): void
     {
-        /** @var Sequence<Thread> */
+        /** @var Sequence<Task> */
         $threads = Sequence::of();
 
         while ($source->active() || !$threads->empty()) {

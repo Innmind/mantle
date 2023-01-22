@@ -5,7 +5,7 @@ namespace Innmind\Mantle\Source;
 
 use Innmind\Mantle\{
     Source,
-    Thread,
+    Task,
     Continuation,
 };
 use Innmind\Immutable\{
@@ -41,7 +41,7 @@ final class Predetermined implements Source
         $next = $this
             ->threads
             ->first()
-            ->map(Thread::of(...));
+            ->map(Task::of(...));
         $this->threads = $this->threads->drop(1);
 
         return $next;
