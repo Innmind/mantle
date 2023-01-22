@@ -25,11 +25,11 @@ final class Forerunner
     public function __invoke(Source $source): void
     {
         /** @var Sequence<Task> */
-        $threads = Sequence::of();
+        $active = Sequence::of();
 
-        while ($source->active() || !$threads->empty()) {
-            $threads = $threads
-                ->append($source->emerge())
+        while ($source->active() || !$active->empty()) {
+            $active = $active
+                ->append($source->emerge($active))
                 ->flatMap(fn($thread) => $thread->continue($this->strategy));
         }
     }

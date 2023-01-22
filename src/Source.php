@@ -8,8 +8,10 @@ use Innmind\Immutable\Sequence;
 interface Source
 {
     /**
+     * @param Sequence<Task> $active
+     *
      * @return Sequence<Task>
      */
-    public function emerge(): Sequence;
+    public function emerge(Sequence $active): Sequence;
     public function active(): bool;
 }
