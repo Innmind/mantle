@@ -16,36 +16,36 @@ use Innmind\Immutable\{
 final class Predetermined implements Source
 {
     /** @var Sequence<callable(Suspend): void> */
-    private Sequence $threads;
+    private Sequence $tasks;
 
     /**
-     * @param Sequence<callable(Suspend): void> $threads
+     * @param Sequence<callable(Suspend): void> $tasks
      */
-    private function __construct(Sequence $threads)
+    private function __construct(Sequence $tasks)
     {
-        $this->threads = $threads;
+        $this->tasks = $tasks;
     }
 
     /**
      * @no-named-arguments
      *
-     * @param callable(Suspend): void $threads
+     * @param callable(Suspend): void $tasks
      */
-    public static function of(callable ...$threads): self
+    public static function of(callable ...$tasks): self
     {
-        return new self(Sequence::of(...$threads));
+        return new self(Sequence::of(...$tasks));
     }
 
     public function emerge(Sequence $active): Sequence
     {
-        $next = $this->threads->map(Task::of(...));
-        $this->threads = $this->threads->clear();
+        $next = $this->tasks->map(Task::of(...));
+        $this->tasks = $this->tasks->clear();
 
         return $next;
     }
 
     public function active(): bool
     {
-        return !$this->threads->empty();
+        return !$this->tasks->empty();
     }
 }

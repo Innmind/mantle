@@ -30,7 +30,7 @@ final class Forerunner
         while ($source->active() || !$active->empty()) {
             $active = $active
                 ->append($source->emerge($active))
-                ->flatMap(fn($thread) => $thread->continue($this->strategy));
+                ->flatMap(fn($task) => $task->continue($this->strategy));
         }
     }
 

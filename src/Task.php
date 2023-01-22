@@ -16,11 +16,11 @@ final class Task
     }
 
     /**
-     * @param callable(Suspend): void $thread
+     * @param callable(Suspend): void $task
      */
-    public static function of(callable $thread): self
+    public static function of(callable $task): self
     {
-        return new self(new \Fiber($thread));
+        return new self(new \Fiber($task));
     }
 
     /**
