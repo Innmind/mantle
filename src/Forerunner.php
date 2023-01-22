@@ -28,11 +28,9 @@ final class Forerunner
         $threads = Sequence::of();
 
         while ($source->active() || !$threads->empty()) {
-            $threads = $source->emerge()->match(
-                static fn($thread) => ($threads)($thread),
-                static fn() => $threads,
-            );
-            $threads = $threads->flatMap(fn($thread) => $thread->continue($this->strategy));
+            $threads = $threads
+                ->append($source->emerge())
+                ->flatMap(fn($thread) => $thread->continue($this->strategy));
         }
     }
 

@@ -36,13 +36,10 @@ final class Predetermined implements Source
         return new self(Sequence::of(...$threads));
     }
 
-    public function emerge(): Maybe
+    public function emerge(): Sequence
     {
-        $next = $this
-            ->threads
-            ->first()
-            ->map(Task::of(...));
-        $this->threads = $this->threads->drop(1);
+        $next = $this->threads->map(Task::of(...));
+        $this->threads = $this->threads->clear();
 
         return $next;
     }

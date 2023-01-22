@@ -3,13 +3,13 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Immutable\Maybe;
+use Innmind\Immutable\Sequence;
 
 interface Source
 {
     /**
-     * @return Maybe<Task>
+     * @return Sequence<Task>
      */
-    public function emerge(): Maybe;
+    public function emerge(): Sequence;
     public function active(): bool;
 }
