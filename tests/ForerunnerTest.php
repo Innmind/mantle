@@ -9,7 +9,10 @@ use Innmind\Mantle\{
     Suspend\Asynchronous,
     Suspend\Synchronous,
 };
-use Innmind\Immutable\Sequence;
+use Innmind\Immutable\{
+    Sequence,
+    SideEffect,
+};
 use PHPUnit\Framework\TestCase;
 use Innmind\BlackBox\{
     PHPUnit\BlackBox,
@@ -56,7 +59,9 @@ class ForerunnerTest extends TestCase
         );
 
         $forerunner = Forerunner::of($strategy);
-        $forerunner($source);
+        $carry = new SideEffect;
+
+        $this->assertSame($carry, $forerunner($carry, $source));
 
         $this->assertSame(
             $expected,
@@ -97,7 +102,12 @@ class ForerunnerTest extends TestCase
         );
 
         $forerunner = Forerunner::of();
-        $forerunner(Source\Throttle::of($source, 1));
+        $carry = new SideEffect;
+
+        $this->assertSame(
+            $carry,
+            $forerunner($carry, Source\Throttle::of($source, 1)),
+        );
 
         $this->assertSame(
             [0, 2, 4, 6, 1, 3, 5, 7, 9, 11],
@@ -164,7 +174,12 @@ class ForerunnerTest extends TestCase
         );
 
         $forerunner = Forerunner::of();
-        $forerunner(Source\Throttle::of($source, 2));
+        $carry = new SideEffect;
+
+        $this->assertSame(
+            $carry,
+            $forerunner($carry, Source\Throttle::of($source, 2)),
+        );
 
         $this->assertSame(
             [0, 1, 2, 3, 4, 5, 6, 7, 9, 11, 8, 10, 12, 13, 14, 15, 16, 17, 18, 19],

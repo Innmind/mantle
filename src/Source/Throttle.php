@@ -35,10 +35,10 @@ final class Throttle implements Source
         return new self($source, $limit);
     }
 
-    public function emerge(Sequence $active): Sequence
+    public function emerge(mixed $carry, Sequence $active): array
     {
         if ($active->size() >= $this->limit) {
-            return Sequence::of();
+            return [$carry, Sequence::of()];
         }
 
         /** @var positive-int */
@@ -46,13 +46,14 @@ final class Throttle implements Source
         $buffer = $this->buffer;
 
         if ($buffer->size() < $letThrough) {
-            $buffer = $buffer->append($this->source->emerge($active));
+            [$carry, $emerged] = $this->source->emerge($carry, $active);
+            $buffer = $buffer->append($emerged);
         }
 
         $emerge = $buffer->take($letThrough);
         $this->buffer = $buffer->drop($letThrough);
 
-        return $emerge;
+        return [$carry, $emerge];
     }
 
     public function active(): bool

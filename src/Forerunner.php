@@ -22,16 +22,26 @@ final class Forerunner
         $this->strategy = $strategy;
     }
 
-    public function __invoke(Source $source): void
+    /**
+     * @template C
+     *
+     * @param C $carry
+     *
+     * @return C
+     */
+    public function __invoke(mixed $carry, Source $source): mixed
     {
         /** @var Sequence<Task> */
         $active = Sequence::of();
 
         while ($source->active() || !$active->empty()) {
+            [$carry, $emerged] = $source->emerge($carry, $active);
             $active = $active
-                ->append($source->emerge($active))
+                ->append($emerged)
                 ->flatMap(fn($task) => $task->continue($this->strategy));
         }
+
+        return $carry;
     }
 
     /**

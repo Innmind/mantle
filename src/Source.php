@@ -8,10 +8,13 @@ use Innmind\Immutable\Sequence;
 interface Source
 {
     /**
+     * @template C
+     *
+     * @param C $carry
      * @param Sequence<Task> $active
      *
-     * @return Sequence<Task>
+     * @return array{C, Sequence<Task>}
      */
-    public function emerge(Sequence $active): Sequence;
+    public function emerge(mixed $carry, Sequence $active): array;
     public function active(): bool;
 }

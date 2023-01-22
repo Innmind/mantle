@@ -36,12 +36,12 @@ final class Predetermined implements Source
         return new self(Sequence::of(...$tasks));
     }
 
-    public function emerge(Sequence $active): Sequence
+    public function emerge(mixed $carry, Sequence $active): array
     {
         $next = $this->tasks->map(Task::of(...));
         $this->tasks = $this->tasks->clear();
 
-        return $next;
+        return [$carry, $next];
     }
 
     public function active(): bool
