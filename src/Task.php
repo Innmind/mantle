@@ -4,6 +4,7 @@ declare(strict_types = 1);
 namespace Innmind\Mantle;
 
 use Innmind\Mantle\Suspend\Strategy;
+use Innmind\TimeContinuum\Clock;
 use Innmind\Immutable\Sequence;
 
 final class Task
@@ -28,10 +29,10 @@ final class Task
      *
      * @return Sequence<self> Returns a Sequence for an easier integration in Forerunner
      */
-    public function continue(callable $strategy): Sequence
+    public function continue(Clock $clock, callable $strategy): Sequence
     {
         if (!$this->fiber->isStarted()) {
-            $this->fiber->start(Suspend::of($strategy()));
+            $this->fiber->start(Suspend::of($clock, $strategy()));
 
             return $this->next();
         }

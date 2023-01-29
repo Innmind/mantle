@@ -41,15 +41,12 @@ class TimeFrameTest extends TestCase
             ->then(function($now, $allowed) {
                 $clock = $this->createMock(Clock::class);
                 $clock
-                    ->expects($this->exactly(2))
+                    ->expects($this->once())
                     ->method('now')
-                    ->willReturnOnConsecutiveCalls(
-                        $now,
-                        $now->goForward(new Millisecond($allowed)),
-                    );
+                    ->willReturn($now->goForward(new Millisecond($allowed)));
                 $shouldSuspend = TimeFrame::of($clock, ElapsedPeriod::of(500))();
 
-                $this->assertFalse($shouldSuspend());
+                $this->assertFalse($shouldSuspend($now));
             });
         $this
             ->forAll(
@@ -59,16 +56,12 @@ class TimeFrameTest extends TestCase
             ->then(function($now, $trigger) {
                 $clock = $this->createMock(Clock::class);
                 $clock
-                    ->expects($this->atLeast(2))
+                    ->expects($this->once())
                     ->method('now')
-                    ->willReturnOnConsecutiveCalls(
-                        $now,
-                        $now->goForward(new Millisecond($trigger)),
-                        $now->goForward(new Millisecond($trigger)),
-                    );
+                    ->willReturn($now->goForward(new Millisecond($trigger)));
                 $shouldSuspend = TimeFrame::of($clock, ElapsedPeriod::of(500))();
 
-                $this->assertTrue($shouldSuspend());
+                $this->assertTrue($shouldSuspend($now));
             });
     }
 }

@@ -7,18 +7,21 @@ use Innmind\Mantle\Suspend\{
     Strategy,
     Asynchronous,
 };
+use Innmind\TimeContinuum\Clock;
 use Innmind\Immutable\Sequence;
 
 final class Forerunner
 {
+    private Clock $clock;
     /** @var callable(): Strategy */
     private $strategy;
 
     /**
      * @param callable(): Strategy $strategy
      */
-    private function __construct(callable $strategy)
+    private function __construct(Clock $clock, callable $strategy)
     {
+        $this->clock = $clock;
         $this->strategy = $strategy;
     }
 
@@ -38,7 +41,10 @@ final class Forerunner
             [$carry, $emerged] = $source->emerge($carry, $active);
             $active = $active
                 ->append($emerged)
-                ->flatMap(fn($task) => $task->continue($this->strategy));
+                ->flatMap(fn($task) => $task->continue(
+                    $this->clock,
+                    $this->strategy,
+                ));
         }
 
         return $carry;
@@ -47,8 +53,8 @@ final class Forerunner
     /**
      * @param ?callable(): Strategy $strategy
      */
-    public static function of(callable $strategy = null): self
+    public static function of(Clock $clock, callable $strategy = null): self
     {
-        return new self($strategy ?? Asynchronous::of(...));
+        return new self($clock, $strategy ?? Asynchronous::of(...));
     }
 }

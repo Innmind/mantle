@@ -9,6 +9,7 @@ use Innmind\Mantle\{
     Suspend\Asynchronous,
     Suspend\Synchronous,
 };
+use Innmind\TimeContinuum\Earth\Clock;
 use Innmind\Immutable\{
     Sequence,
     SideEffect,
@@ -58,7 +59,7 @@ class ForerunnerTest extends TestCase
                 ->foreach(static fn($i) => $queue->enqueue($i)),
         );
 
-        $forerunner = Forerunner::of($strategy);
+        $forerunner = Forerunner::of(new Clock, $strategy);
         $carry = new SideEffect;
 
         $this->assertSame($carry, $forerunner($carry, $source));
@@ -101,7 +102,7 @@ class ForerunnerTest extends TestCase
                 ->foreach(static fn($i) => $queue->enqueue($i)),
         );
 
-        $forerunner = Forerunner::of();
+        $forerunner = Forerunner::of(new Clock);
         $carry = new SideEffect;
 
         $this->assertSame(
@@ -173,7 +174,7 @@ class ForerunnerTest extends TestCase
                 ->foreach(static fn($i) => $queue->enqueue($i)),
         );
 
-        $forerunner = Forerunner::of();
+        $forerunner = Forerunner::of(new Clock);
         $carry = new SideEffect;
 
         $this->assertSame(
