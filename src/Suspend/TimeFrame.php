@@ -13,28 +13,20 @@ final class TimeFrame implements Strategy
 {
     private Clock $clock;
     private ElapsedPeriod $frame;
-    private PointInTime $lastSuspended;
 
     private function __construct(Clock $clock, ElapsedPeriod $frame)
     {
         $this->clock = $clock;
         $this->frame = $frame;
-        $this->lastSuspended = $clock->now();
     }
 
-    public function __invoke(): bool
+    public function __invoke(PointInTime $resumedAt): bool
     {
-        $shouldSuspend = $this
+        return $this
             ->clock
             ->now()
-            ->elapsedSince($this->lastSuspended)
+            ->elapsedSince($resumedAt)
             ->longerThan($this->frame);
-
-        if ($shouldSuspend) {
-            $this->lastSuspended = $this->clock->now();
-        }
-
-        return $shouldSuspend;
     }
 
     /**
