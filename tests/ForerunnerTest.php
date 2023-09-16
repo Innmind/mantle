@@ -188,7 +188,7 @@ class ForerunnerTest extends TestCase
         );
     }
 
-    public function strategies(): iterable
+    public static function strategies(): iterable
     {
         yield [
             null,
