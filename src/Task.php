@@ -3,8 +3,10 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\Strategy;
-use Innmind\TimeContinuum\Clock;
+use Innmind\OperatingSystem\{
+    Factory,
+    OperatingSystem,
+};
 use Innmind\Immutable\Sequence;
 
 final class Task
@@ -17,7 +19,7 @@ final class Task
     }
 
     /**
-     * @param callable(Suspend): void $task
+     * @param callable(OperatingSystem): void $task
      */
     public static function of(callable $task): self
     {
@@ -25,14 +27,22 @@ final class Task
     }
 
     /**
-     * @param callable(): Strategy $strategy
-     *
      * @return Sequence<self> Returns a Sequence for an easier integration in Forerunner
      */
-    public function continue(Clock $clock, callable $strategy): Sequence
+    public function continue(OperatingSystem $synchronous): Sequence
     {
         if (!$this->fiber->isStarted()) {
-            $this->fiber->start(Suspend::of($clock, $strategy()));
+            $suspend = Suspend::new();
+            $this->fiber->start($synchronous->map(
+                static fn($_, $config) => Factory::build(
+                    $config
+                        ->useStreamCapabilities(Asynchronous\Stream\Capabilities::of(
+                            $suspend,
+                            $config->streamCapabilities(),
+                        ))
+                        ->haltProcessVia(Asynchronous\Halt::of($suspend)),
+                ),
+            ));
 
             return $this->next();
         }

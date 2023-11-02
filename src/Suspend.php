@@ -3,26 +3,12 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\{
-    Strategy,
-    Action,
-};
-use Innmind\TimeContinuum\{
-    Clock,
-    PointInTime,
-};
+use Innmind\Mantle\Suspend\Action;
 
 final class Suspend
 {
-    private Clock $clock;
-    private Strategy $shouldSuspend;
-    private PointInTime $resumedAt;
-
-    private function __construct(Clock $clock, Strategy $shouldSuspend)
+    private function __construct()
     {
-        $this->clock = $clock;
-        $this->shouldSuspend = $shouldSuspend;
-        $this->resumedAt = $clock->now();
     }
 
     /**
@@ -38,8 +24,8 @@ final class Suspend
         return \Fiber::suspend($action);
     }
 
-    public static function of(Clock $clock, Strategy $shouldSuspend): self
+    public static function new(): self
     {
-        return new self($clock, $shouldSuspend);
+        return new self;
     }
 }

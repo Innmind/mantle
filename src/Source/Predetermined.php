@@ -6,8 +6,8 @@ namespace Innmind\Mantle\Source;
 use Innmind\Mantle\{
     Source,
     Task,
-    Suspend,
 };
+use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\Immutable\{
     Sequence,
     Maybe,
@@ -15,11 +15,11 @@ use Innmind\Immutable\{
 
 final class Predetermined implements Source
 {
-    /** @var Sequence<callable(Suspend): void> */
+    /** @var Sequence<callable(OperatingSystem): void> */
     private Sequence $tasks;
 
     /**
-     * @param Sequence<callable(Suspend): void> $tasks
+     * @param Sequence<callable(OperatingSystem): void> $tasks
      */
     private function __construct(Sequence $tasks)
     {
@@ -29,7 +29,7 @@ final class Predetermined implements Source
     /**
      * @no-named-arguments
      *
-     * @param callable(Suspend): void $tasks
+     * @param callable(OperatingSystem): void $tasks
      */
     public static function of(callable ...$tasks): self
     {
