@@ -7,7 +7,6 @@ use Innmind\OperatingSystem\{
     Factory,
     OperatingSystem,
 };
-use Innmind\Immutable\Sequence;
 
 final class Task
 {
@@ -26,14 +25,14 @@ final class Task
         return new self(new \Fiber($task));
     }
 
-    /**
-     * @return Sequence<self> Returns a Sequence for an easier integration in Forerunner
-     */
-    public function continue(OperatingSystem $synchronous): Sequence
+    public function continue(OperatingSystem $synchronous): mixed
     {
+        $returned = null;
+
         if (!$this->fiber->isStarted()) {
             $suspend = Suspend::new();
-            $this->fiber->start($synchronous->map(
+            /** @var mixed */
+            $returned = $this->fiber->start($synchronous->map(
                 static fn($_, $config) => Factory::build(
                     $config
                         ->useStreamCapabilities(Asynchronous\Stream\Capabilities::of(
@@ -44,24 +43,31 @@ final class Task
                 ),
             ));
 
-            return $this->next();
+            return $this->next($returned);
         }
 
         if (!$this->fiber->isTerminated()) {
-            $this->fiber->resume();
+            /** @var mixed */
+            $returned = $this->fiber->resume();
         }
 
-        return $this->next();
+        return $this->next($returned);
     }
 
-    /**
-     * @return Sequence<self>
-     */
-    private function next(): Sequence
+    public function resume(mixed $toSend): mixed
     {
-        return match (!$this->fiber->isTerminated()) {
-            true => Sequence::of($this),
-            false => Sequence::of(),
-        };
+        /** @var mixed */
+        $returned = $this->fiber->resume($toSend);
+
+        return $this->next($returned);
+    }
+
+    private function next(mixed $returned): mixed
+    {
+        if ($this->fiber->isTerminated()) {
+            return $this->fiber->getReturn();
+        }
+
+        return $returned;
     }
 }

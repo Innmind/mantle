@@ -3,26 +3,15 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\{
-    Strategy,
-    Asynchronous,
-};
-use Innmind\TimeContinuum\Clock;
-use Innmind\Immutable\Sequence;
+use Innmind\OperatingSystem\OperatingSystem;
 
 final class Forerunner
 {
-    private Clock $clock;
-    /** @var callable(): Strategy */
-    private $strategy;
+    private OperatingSystem $os;
 
-    /**
-     * @param callable(): Strategy $strategy
-     */
-    private function __construct(Clock $clock, callable $strategy)
+    private function __construct(OperatingSystem $os)
     {
-        $this->clock = $clock;
-        $this->strategy = $strategy;
+        $this->os = $os;
     }
 
     /**
@@ -34,27 +23,23 @@ final class Forerunner
      */
     public function __invoke(mixed $carry, Source $source): mixed
     {
-        /** @var Sequence<Task> */
-        $active = Sequence::of();
+        $tasks = Tasks::none();
+        $active = $tasks->active();
 
         while ($source->active() || !$active->empty()) {
             [$carry, $emerged] = $source->emerge($carry, $active);
-            $active = $active
+            $tasks = $tasks
                 ->append($emerged)
-                ->flatMap(fn($task) => $task->continue(
-                    $this->clock,
-                    $this->strategy,
-                ));
+                ->continue($this->os)
+                ->wait(Wait::new($this->os));
+            $active = $tasks->active();
         }
 
         return $carry;
     }
 
-    /**
-     * @param ?callable(): Strategy $strategy
-     */
-    public static function of(Clock $clock, callable $strategy = null): self
+    public static function of(OperatingSystem $os): self
     {
-        return new self($clock, $strategy ?? Asynchronous::of(...));
+        return new self($os);
     }
 }

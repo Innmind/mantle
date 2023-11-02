@@ -5,6 +5,9 @@ namespace Innmind\Mantle;
 
 use Innmind\Mantle\Suspend\Action;
 
+/**
+ * @internal
+ */
 final class Suspend
 {
     private function __construct()
