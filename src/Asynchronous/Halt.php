@@ -21,7 +21,7 @@ final class Halt implements HaltInterface
 
     public function __invoke(Period $timeout): void
     {
-        ($this->suspend)();
+        ($this->suspend)(Suspend\Action\Halt::of($timeout));
     }
 
     public static function of(Suspend $suspend): self

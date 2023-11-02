@@ -7,7 +7,6 @@ use Innmind\Mantle\Suspend;
 use Innmind\TimeContinuum\ElapsedPeriod;
 use Innmind\Stream\{
     Watch as WatchInterface,
-    Watch\Ready,
     Stream,
     Readable,
     Writable,
@@ -51,10 +50,11 @@ final class Watch implements WatchInterface
 
     public function __invoke(): Maybe
     {
-        ($this->suspend)();
-
-        /** @var Maybe<Ready> */
-        return Maybe::nothing();
+        return ($this->suspend)(Suspend\Action\Watch::of(
+            $this->timeout,
+            $this->forRead,
+            $this->forWrite,
+        ));
     }
 
     /**

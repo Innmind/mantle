@@ -3,7 +3,10 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\Strategy;
+use Innmind\Mantle\Suspend\{
+    Strategy,
+    Action,
+};
 use Innmind\TimeContinuum\{
     Clock,
     PointInTime,
@@ -22,12 +25,17 @@ final class Suspend
         $this->resumedAt = $clock->now();
     }
 
-    public function __invoke(): void
+    /**
+     * @template T
+     *
+     * @param Action<T> $action
+     *
+     * @return T
+     */
+    public function __invoke(Action $action): mixed
     {
-        if (($this->shouldSuspend)($this->resumedAt)) {
-            \Fiber::suspend();
-            $this->resumedAt = $this->clock->now();
-        }
+        /** @var T */
+        return \Fiber::suspend($action);
     }
 
     public static function of(Clock $clock, Strategy $shouldSuspend): self
