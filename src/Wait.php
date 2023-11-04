@@ -89,16 +89,13 @@ final class Wait
             static fn($timeout) => $timeout,
             static fn() => null,
         );
-        /**
-         * @psalm-suppress TooFewArguments
-         * @psalm-suppress InvalidArgument
-         */
+        /** @psalm-suppress InvalidArgument */
         $watch = $this
             ->os
             ->sockets()
             ->watch($timeout)
-            ->forRead(...$forRead()->toList())
-            ->forWrite(...$forWrite()->toList());
+            ->forRead(...$forRead->toList())
+            ->forWrite(...$forWrite->toList());
 
         $ready = $watch();
         $took = $this->os->clock()->now()->elapsedSince($started);
