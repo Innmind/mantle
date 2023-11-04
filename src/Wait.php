@@ -21,29 +21,35 @@ use Innmind\Immutable\{
 final class Wait
 {
     private OperatingSystem $os;
+    /** @var Maybe<Task\PendingActivity> */
+    private Maybe $source;
     /** @var Sequence<Task\PendingActivity> */
     private Sequence $tasks;
 
     /**
+     * @param Maybe<Task\PendingActivity> $source
      * @param Sequence<Task\PendingActivity> $tasks
      */
     private function __construct(
         OperatingSystem $os,
+        Maybe $source,
         Sequence $tasks,
     ) {
         $this->os = $os;
+        $this->source = $source;
         $this->tasks = $tasks;
     }
 
     /**
-     * @return Sequence<Task\PendingActivity|Task\Activated>
+     * @return array{Maybe<Task\PendingActivity|Task\Activated>, Sequence<Task\PendingActivity|Task\Activated>}
      */
-    public function __invoke(): Sequence
+    public function __invoke(): array
     {
         $started = $this->os->clock()->now();
 
-        /** @var Maybe<ElapsedPeriod> */
-        $shortestTimeout = Maybe::nothing();
+        $shortestTimeout = $this
+            ->source
+            ->flatMap(static fn($source) => $source->action()->timeout());
         $shortestTimeout = $this
             ->tasks
             ->map(static fn($task) => $task->action()->timeout())
@@ -62,12 +68,26 @@ final class Wait
             ->tasks
             ->map(static fn($task) => $task->action()->forRead())
             ->toSet()
-            ->flatMap(static fn($streams) => $streams);
+            ->flatMap(static fn($streams) => $streams)
+            ->merge(
+                $this
+                    ->source
+                    ->toSequence()
+                    ->toSet()
+                    ->flatMap(static fn($task) => $task->action()->forRead()),
+            );
         $forWrite = $this
             ->tasks
             ->map(static fn($task) => $task->action()->forWrite())
             ->toSet()
-            ->flatMap(static fn($streams) => $streams);
+            ->flatMap(static fn($streams) => $streams)
+            ->merge(
+                $this
+                    ->source
+                    ->toSequence()
+                    ->toSet()
+                    ->flatMap(static fn($task) => $task->action()->forWrite()),
+            );
 
         if ($forRead->empty() && $forWrite->empty()) {
             $_ = $shortestTimeout->match(
@@ -108,26 +128,43 @@ final class Wait
 
     public static function new(OperatingSystem $os): self
     {
-        return new self($os, Sequence::of());
+        /** @var Maybe<Task\PendingActivity> */
+        $source = Maybe::nothing();
+
+        return new self($os, $source, Sequence::of());
+    }
+
+    /**
+     * @param Maybe<Task\PendingActivity> $source
+     */
+    public function withSource(Maybe $source): self
+    {
+        return new self($this->os, $source, $this->tasks);
     }
 
     public function with(Task\PendingActivity $task): self
     {
-        return new self($this->os, $this->tasks->add($task));
+        return new self($this->os, $this->source, $this->tasks->add($task));
     }
 
     /**
      * @param Maybe<Ready> $ready
      *
-     * @return Sequence<Task\PendingActivity|Task\Activated>
+     * @return array{Maybe<Task\PendingActivity|Task\Activated>, Sequence<Task\PendingActivity|Task\Activated>}
      */
     private function continue(
         ElapsedPeriod $took,
         Maybe $ready,
-    ): Sequence {
-        return $this->tasks->map(static fn($task) => $task->continue(
+    ): array {
+        $source = $this->source->map(static fn($source) => $source->continue(
             $took,
             $ready,
         ));
+        $tasks = $this->tasks->map(static fn($task) => $task->continue(
+            $took,
+            $ready,
+        ));
+
+        return [$source, $tasks];
     }
 }

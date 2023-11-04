@@ -29,4 +29,12 @@ final class Terminated
     {
         return new self($task, $returned);
     }
+
+    /**
+     * @psalm-mutation-free
+     */
+    public function returned(): mixed
+    {
+        return $this->returned;
+    }
 }

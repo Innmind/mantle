@@ -8,11 +8,11 @@ use Innmind\Mantle\{
     Task,
 };
 use Innmind\OperatingSystem\OperatingSystem;
-use Innmind\Immutable\{
-    Sequence,
-    Maybe,
-};
+use Innmind\Immutable\Sequence;
 
+/**
+ * @implements Source<null>
+ */
 final class Predetermined implements Source
 {
     /** @var Sequence<callable(OperatingSystem): void> */
@@ -26,6 +26,16 @@ final class Predetermined implements Source
         $this->tasks = $tasks;
     }
 
+    public function __invoke(
+        mixed $carry,
+        OperatingSystem $os,
+        Continuation $continuation,
+    ): Continuation {
+        return $continuation
+            ->launch($this->tasks->map(Task::of(...)))
+            ->terminate();
+    }
+
     /**
      * @no-named-arguments
      *
@@ -34,18 +44,5 @@ final class Predetermined implements Source
     public static function of(callable ...$tasks): self
     {
         return new self(Sequence::of(...$tasks));
-    }
-
-    public function emerge(mixed $carry, Sequence $active): array
-    {
-        $next = $this->tasks->map(Task::of(...));
-        $this->tasks = $this->tasks->clear();
-
-        return [$carry, $next];
-    }
-
-    public function active(): bool
-    {
-        return !$this->tasks->empty();
     }
 }

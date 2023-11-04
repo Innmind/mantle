@@ -8,6 +8,9 @@ use Innmind\OperatingSystem\{
     OperatingSystem,
 };
 
+/**
+ * @template R
+ */
 final class Task
 {
     private \Fiber $fiber;
@@ -18,7 +21,11 @@ final class Task
     }
 
     /**
-     * @param callable(OperatingSystem): void $task
+     * @template A
+     *
+     * @param callable(OperatingSystem): A $task
+     *
+     * @return self<A>
      */
     public static function of(callable $task): self
     {

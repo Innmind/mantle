@@ -18,24 +18,21 @@ final class Forerunner
      * @template C
      *
      * @param C $carry
+     * @param Source<C> $source
      *
      * @return C
      */
     public function __invoke(mixed $carry, Source $source): mixed
     {
-        $tasks = Tasks::none();
-        $active = $tasks->active();
+        $tasks = Tasks::of(Source\Context::of($source, $carry));
 
-        while ($source->active() || !$active->empty()) {
-            [$carry, $emerged] = $source->emerge($carry, $active);
+        while ($tasks->active()) {
             $tasks = $tasks
-                ->append($emerged)
                 ->continue($this->os)
                 ->wait(Wait::new($this->os));
-            $active = $tasks->active();
         }
 
-        return $carry;
+        return $tasks->carry();
     }
 
     public static function of(OperatingSystem $os): self

@@ -3,18 +3,24 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Immutable\Sequence;
+use Innmind\Mantle\Source\Continuation;
+use Innmind\OperatingSystem\OperatingSystem;
 
+/**
+ * @todo this should be a type defined directly in Forerunner
+ * @template C
+ */
 interface Source
 {
     /**
-     * @template C
-     *
      * @param C $carry
-     * @param Sequence<Task> $active
+     * @param Continuation<C> $continuation
      *
-     * @return array{C, Sequence<Task>}
+     * @return Continuation<C>
      */
-    public function emerge(mixed $carry, Sequence $active): array;
-    public function active(): bool;
+    public function __invoke(
+        mixed $carry,
+        OperatingSystem $os,
+        Continuation $continuation,
+    ): Continuation;
 }

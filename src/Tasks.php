@@ -3,49 +3,102 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
+use Innmind\Mantle\Source\Context;
 use Innmind\OperatingSystem\OperatingSystem;
-use Innmind\Immutable\Sequence;
+use Innmind\Immutable\{
+    Sequence,
+    Either,
+    Predicate\Instance,
+};
 
 /**
  * @internal
+ * @template C
  */
 final class Tasks
 {
+    /** @var Either<C, Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> */
+    private Either $source;
     /** @var Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> */
     private Sequence $all;
 
     /**
      * @psalm-mutation-free
      *
+     * @param Either<C, Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> $source
      * @param Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> $all
      */
-    private function __construct(Sequence $all)
+    private function __construct(Either $source, Sequence $all)
     {
+        $this->source = $source;
         $this->all = $all;
     }
 
-    public static function none(): self
-    {
-        return new self(Sequence::of());
-    }
-
     /**
-     * @psalm-mutation-free
+     * @template A
      *
-     * @param Sequence<Task> $new
+     * @param Context<A> $source
+     *
+     * @return self<A>
      */
-    public function append(Sequence $new): self
+    public static function of(Context $source): self
     {
         return new self(
-            $this
-                ->all
-                ->append($new->map(Task\BrandNew::of(...)))
-                ->filter(static fn($task) => !($task instanceof Task\Terminated)), // cleanup
+            Either::right(Task\BrandNew::of(Task::of($source))),
+            Sequence::of(),
         );
     }
 
+    /**
+     * @return self<C>
+     */
     public function continue(OperatingSystem $os): self
     {
+        // Start the source fiber if it's brand new or resume it if it has been
+        // activated in a previous iteration
+        $source = $this
+            ->source
+            ->flatMap(static fn($task) => match (true) {
+                $task instanceof Task\BrandNew => Either::right($task),
+                $task instanceof Task\Activated => Either::right($task),
+                default => Either::left($task)
+            })
+            ->map(static fn($task) => $task->continue($os))
+            ->otherwise(static fn($left) => match (true) {
+                $left instanceof Task\PendingActivity => Either::right($left),
+                $left instanceof Task\Terminated => Either::right($left),
+                default => Either::left($left),
+            });
+        // Add any new tasks returned by the source to the list of tasks to run
+        $newTasks = $source
+            ->maybe()
+            ->keep(Instance::of(Task\Terminated::class))
+            ->map(static fn($task): mixed => $task->returned())
+            ->keep(Instance::of(Context::class))
+            ->toSequence()
+            ->flatMap(static fn($context) => $context->continuation()->match(
+                static fn($_, $tasks) => $tasks,
+                static fn($_, $tasks) => $tasks,
+            ))
+            ->map(Task\BrandNew::of(...));
+        // If the source fiber has terminated and the continuation tells that
+        // the source has terminated producing tasks then we move the carried
+        // value to the left in order to wait all tasks to finish.
+        // If the source fiber has terminated but the continuation tells that
+        // the source can be resumed then we the source in a brand new task.
+        // If none of the above then we leave it as is, meaning pending or activated
+        /** @psalm-suppress MixedArgument Psalm lose the type of the returned value */
+        $source = $source->flatMap(static fn($task) => match (true) {
+            $task instanceof Task\Terminated && $task->returned() instanceof Context => $task
+                ->returned()
+                ->continuation()
+                ->match(
+                    static fn() => Either::right(Task\BrandNew::of(Task::of($task->returned()))),
+                    static fn($carry) => Either::left($carry),
+                ),
+            default => Either::right($task),
+        });
+
         $partition = $this->all->partition(
             static fn($task) => $task instanceof Task\BrandNew ||
                 $task instanceof Task\Activated,
@@ -62,15 +115,27 @@ final class Tasks
             ->toSequence()
             ->flatMap(static fn($tasks) => $tasks);
 
+        /** @psalm-suppress InvalidArgument */
         return new self(
-            $resumable
+            $source,
+            $newTasks
+                ->append($resumable)
                 ->map(static fn($task) => $task->continue($os))
                 ->append($nonActionable),
         );
     }
 
+    /**
+     * @return self<C>
+     */
     public function wait(Wait $wait): self
     {
+        $wait = $wait->withSource(
+            $this
+                ->source
+                ->maybe()
+                ->keep(Instance::of(Task\PendingActivity::class)),
+        );
         $partition = $this->all->partition(
             static fn($task) => $task instanceof Task\PendingActivity,
         );
@@ -88,27 +153,47 @@ final class Tasks
             $wait,
             static fn(Wait $wait, $task) => $wait->with($task),
         );
-        $tasks = $wait();
+        [$source, $tasks] = $wait();
 
         /** @psalm-suppress InvalidArgument */
-        return new self($tasks->append($rest));
+        return new self(
+            $source->match(
+                static fn($task) => Either::right($task),
+                fn() => $this->source,
+            ),
+            $tasks->append($rest),
+        );
     }
 
     /**
-     * @return Sequence<Task>
+     * @return C
      */
-    public function active(): Sequence
+    public function carry(): mixed
     {
+        /** @var C */
+        return $this->source->match(
+            static fn() => throw new \LogicException('Source still active'),
+            static fn(mixed $carry): mixed => $carry,
+        );
+    }
+
+    public function active(): bool
+    {
+        $sourceActive = $this->source->match(
+            static fn() => true,
+            static fn() => false,
+        );
+
+        if ($sourceActive) {
+            return true;
+        }
+
         /**
          * @todo build an Or predicate in innmind/immutable
-         * @psalm-suppress MixedReturnTypeCoercion
-         * @psalm-suppress MissingClosureReturnType
-         * @psalm-suppress PossiblyUndefinedMethod
-         * @var Sequence<Task>
          */
-        return $this
+        return !$this
             ->all
             ->filter(static fn($task) => !($task instanceof Task\Terminated))
-            ->map(static fn($wrapped) => $wrapped->task());
+            ->empty();
     }
 }

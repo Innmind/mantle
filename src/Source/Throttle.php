@@ -9,6 +9,9 @@ use Innmind\Mantle\{
 };
 use Innmind\Immutable\Sequence;
 
+/**
+ * @psalm-suppress all
+ */
 final class Throttle implements Source
 {
     private Source $source;
