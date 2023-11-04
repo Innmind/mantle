@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
+use Innmind\Mantle\Source\Continuation;
 use Innmind\OperatingSystem\OperatingSystem;
 
 final class Forerunner
@@ -18,13 +19,16 @@ final class Forerunner
      * @template C
      *
      * @param C $carry
-     * @param Source<C> $source
+     * @param callable(C, OperatingSystem, Continuation<C>): Continuation<C> $source
      *
      * @return C
      */
-    public function __invoke(mixed $carry, Source $source): mixed
+    public function __invoke(mixed $carry, callable $source): mixed
     {
-        $tasks = Tasks::of(Source\Context::of($source, $carry));
+        $tasks = Tasks::of(Source\Context::of(
+            Source::of($source),
+            $carry,
+        ));
 
         while ($tasks->active()) {
             $tasks = $tasks

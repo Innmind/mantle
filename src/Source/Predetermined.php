@@ -3,17 +3,11 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle\Source;
 
-use Innmind\Mantle\{
-    Source,
-    Task,
-};
+use Innmind\Mantle\Task;
 use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\Immutable\Sequence;
 
-/**
- * @implements Source<null>
- */
-final class Predetermined implements Source
+final class Predetermined
 {
     /** @var Sequence<callable(OperatingSystem): void> */
     private Sequence $tasks;
