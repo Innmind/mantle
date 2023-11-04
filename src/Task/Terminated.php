@@ -7,14 +7,19 @@ use Innmind\Mantle\Task;
 
 /**
  * @internal
+ * @psalm-immutable
+ * @template T
  */
 final class Terminated
 {
+    /** @var Task<T> */
     private Task $task;
+    /** @var T */
     private mixed $returned;
 
     /**
-     * @psalm-mutation-free
+     * @param Task<T> $task
+     * @param T $returned
      */
     private function __construct(Task $task, mixed $returned)
     {
@@ -24,6 +29,12 @@ final class Terminated
 
     /**
      * @psalm-pure
+     * @template A
+     *
+     * @param Task<A> $task
+     * @param A $returned
+     *
+     * @return self<A>
      */
     public static function of(Task $task, mixed $returned): self
     {
@@ -31,7 +42,7 @@ final class Terminated
     }
 
     /**
-     * @psalm-mutation-free
+     * @return T
      */
     public function returned(): mixed
     {

@@ -13,14 +13,18 @@ use Innmind\Immutable\Maybe;
 
 /**
  * @internal
+ * @template T
  */
 final class PendingActivity
 {
+    /** @var Task<T> */
     private Task $task;
     private Suspend\Action $action;
 
     /**
      * @psalm-mutation-free
+     *
+     * @param Task<T> $task
      */
     private function __construct(Task $task, Suspend\Action $action)
     {
@@ -30,6 +34,11 @@ final class PendingActivity
 
     /**
      * @psalm-pure
+     * @template A
+     *
+     * @param Task<A> $task
+     *
+     * @return self<A>
      */
     public static function of(Task $task, Suspend\Action $action): self
     {
@@ -38,6 +47,8 @@ final class PendingActivity
 
     /**
      * @param Maybe<Ready> $ready
+     *
+     * @return self<T>|Activated<T>
      */
     public function continue(
         ElapsedPeriod $took,
@@ -54,6 +65,8 @@ final class PendingActivity
 
     /**
      * @psalm-mutation-free
+     *
+     * @return Task<T>
      */
     public function task(): Task
     {

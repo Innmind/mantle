@@ -18,9 +18,10 @@ final class Forerunner
 
     /**
      * @template C
+     * @template R
      *
      * @param C $carry
-     * @param callable(C, OperatingSystem, Continuation<C>, Sequence<mixed>): Continuation<C> $source
+     * @param callable(C, OperatingSystem, Continuation<C, R>, Sequence<R>): Continuation<C, R> $source
      *
      * @return C
      */

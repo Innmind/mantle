@@ -11,13 +11,17 @@ use Innmind\OperatingSystem\OperatingSystem;
 
 /**
  * @internal
+ * @template T
  */
 final class BrandNew
 {
+    /** @var Task<T> */
     private Task $task;
 
     /**
      * @psalm-mutation-free
+     *
+     * @param Task<T> $task
      */
     private function __construct(Task $task)
     {
@@ -26,12 +30,20 @@ final class BrandNew
 
     /**
      * @psalm-pure
+     * @template A
+     *
+     * @param Task<A> $task
+     *
+     * @return self<A>
      */
     public static function of(Task $task): self
     {
         return new self($task);
     }
 
+    /**
+     * @return PendingActivity<T>|Terminated<T>
+     */
     public function continue(OperatingSystem $os): PendingActivity|Terminated
     {
         /** @var mixed */
@@ -46,6 +58,8 @@ final class BrandNew
 
     /**
      * @psalm-mutation-free
+     *
+     * @return Task<T>
      */
     public function task(): Task
     {

@@ -9,18 +9,19 @@ use Innmind\Immutable\Sequence;
 /**
  * @psalm-immutable
  * @template C
+ * @template R
  */
 final class Continuation
 {
     /** @var C */
     private mixed $carry;
-    /** @var Sequence<Task> */
+    /** @var Sequence<Task<R>> */
     private Sequence $tasks;
     private bool $terminate;
 
     /**
      * @param C $carry
-     * @param Sequence<Task> $tasks
+     * @param Sequence<Task<R>> $tasks
      */
     private function __construct(mixed $carry, Sequence $tasks, bool $terminate)
     {
@@ -36,7 +37,7 @@ final class Continuation
      *
      * @param A $carry
      *
-     * @return self<A>
+     * @return self<A, mixed>
      */
     public static function of(mixed $carry): self
     {
@@ -46,7 +47,7 @@ final class Continuation
     /**
      * @param C $carry
      *
-     * @return self<C>
+     * @return self<C, R>
      */
     public function carryWith(mixed $carry): self
     {
@@ -54,12 +55,15 @@ final class Continuation
     }
 
     /**
-     * @param Sequence<Task> $tasks
+     * @template A
      *
-     * @return self<C>
+     * @param Sequence<Task<A>> $tasks
+     *
+     * @return self<C, R|A>
      */
     public function launch(Sequence $tasks): self
     {
+        /** @psalm-suppress InvalidArgument */
         return new self(
             $this->carry,
             $this->tasks->append($tasks),
@@ -68,7 +72,7 @@ final class Continuation
     }
 
     /**
-     * @return self<C>
+     * @return self<C, R>
      */
     public function terminate(): self
     {
@@ -90,8 +94,8 @@ final class Continuation
      * @template R1
      * @template R2
      *
-     * @param callable(C, Sequence<Task>): R1 $resume
-     * @param callable(C, Sequence<Task>): R2 $terminate
+     * @param callable(C, Sequence<Task<R>>): R1 $resume
+     * @param callable(C, Sequence<Task<R>>): R2 $terminate
      *
      * @return R1|R2
      */

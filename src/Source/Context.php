@@ -10,20 +10,21 @@ use Innmind\Immutable\Sequence;
 /**
  * @internal
  * @template C
+ * @template R
  */
 final class Context
 {
-    /** @var Source<C> */
+    /** @var Source<C, R> */
     private Source $source;
-    /** @var Continuation<C> */
+    /** @var Continuation<C, R> */
     private Continuation $continuation;
-    /** @var Sequence<mixed> */
+    /** @var Sequence<R> */
     private Sequence $results;
 
     /**
-     * @param Source<C> $source
-     * @param Continuation<C> $continuation
-     * @param Sequence<mixed> $results
+     * @param Source<C, R> $source
+     * @param Continuation<C, R> $continuation
+     * @param Sequence<R> $results
      */
     private function __construct(
         Source $source,
@@ -36,7 +37,7 @@ final class Context
     }
 
     /**
-     * @return self<C>
+     * @return self<C, R>
      */
     public function __invoke(OperatingSystem $os): self
     {
@@ -52,19 +53,23 @@ final class Context
 
     /**
      * @template A
+     * @template B
      *
-     * @param Source<A> $source
+     * @param Source<A, B> $source
      * @param A $carry
      *
-     * @return self<A>
+     * @return self<A, B>
      */
     public static function of(Source $source, mixed $carry): self
     {
-        return new self($source, Continuation::of($carry), Sequence::of());
+        /** @var Continuation<A, B> */
+        $continuation = Continuation::of($carry);
+
+        return new self($source, $continuation, Sequence::of());
     }
 
     /**
-     * @param Sequence<mixed> $results
+     * @param Sequence<R> $results
      */
     public function withResults(Sequence $results): self
     {
@@ -72,7 +77,7 @@ final class Context
     }
 
     /**
-     * @return Continuation<C>
+     * @return Continuation<C, R>
      */
     public function continuation(): Continuation
     {

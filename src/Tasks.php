@@ -8,25 +8,27 @@ use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\Immutable\{
     Sequence,
     Either,
+    Maybe,
     Predicate\Instance,
 };
 
 /**
  * @internal
  * @template C
+ * @template R
  */
 final class Tasks
 {
-    /** @var Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated> */
+    /** @var Either<C, Context<C, R>|Task\PendingActivity<Context<C, R>>|Task\Activated<Context<C, R>>|Task\Terminated<Context<C, R>>> */
     private Either $source;
-    /** @var Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> */
+    /** @var Sequence<Task\BrandNew<R>|Task\PendingActivity<R>|Task\Activated<R>|Task\Terminated<R>> */
     private Sequence $all;
 
     /**
      * @psalm-mutation-free
      *
-     * @param Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated> $source
-     * @param Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> $all
+     * @param Either<C, Context<C, R>|Task\PendingActivity<Context<C, R>>|Task\Activated<Context<C, R>>|Task\Terminated<Context<C, R>>> $source
+     * @param Sequence<Task\BrandNew<R>|Task\PendingActivity<R>|Task\Activated<R>|Task\Terminated<R>> $all
      */
     private function __construct(Either $source, Sequence $all)
     {
@@ -36,10 +38,11 @@ final class Tasks
 
     /**
      * @template A
+     * @template B
      *
-     * @param Context<A> $source
+     * @param Context<A, B> $source
      *
-     * @return self<A>
+     * @return self<A, B>
      */
     public static function of(Context $source): self
     {
@@ -50,18 +53,19 @@ final class Tasks
     }
 
     /**
-     * @return self<C>
+     * @return self<C, R>
      */
     public function continue(OperatingSystem $os): self
     {
         $partition = $this->all->partition(Instance::of(Task\Terminated::class));
+        /** @var Sequence<R> */
         $terminated = $partition
             ->get(true)
             ->toSequence()
             ->flatMap(static fn($tasks) => $tasks)
             ->keep(Instance::of(Task\Terminated::class)) // to please psalm
             ->map(static fn($task): mixed => $task->returned());
-        /** @var Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated> */
+        /** @var Sequence<Task\BrandNew<R>|Task\PendingActivity<R>|Task\Activated<R>> */
         $active = $partition
             ->get(false)
             ->toSequence()
@@ -103,7 +107,7 @@ final class Tasks
         // If none of the above then we leave it as is, meaning pending or activated
         /**
          * @psalm-suppress MixedArgument Psalm lose the type of the returned value
-         * @var Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated>
+         * @var Either<C, Context<C, R>|Task\PendingActivity<Context<C, R>>|Task\Activated<Context<C, R>>|Task\Terminated<Context<C, R>>>
          */
         $source = $source->flatMap(static fn($task) => match (true) {
             $task instanceof Task\Terminated && $task->returned() instanceof Context => $task
@@ -121,12 +125,12 @@ final class Tasks
                 $task instanceof Task\Activated,
         );
 
-        /** @var Sequence<Task\BrandNew|Task\Activated> */
+        /** @var Sequence<Task\BrandNew<R>|Task\Activated<R>> */
         $resumable = $partition
             ->get(true)
             ->toSequence()
             ->flatMap(static fn($tasks) => $tasks);
-        /** @var Sequence<Task\PendingActivity> */
+        /** @var Sequence<Task\PendingActivity<R>> */
         $nonActionable = $partition
             ->get(false)
             ->toSequence()
@@ -143,20 +147,20 @@ final class Tasks
     }
 
     /**
-     * @return self<C>
+     * @return self<C, R>
      */
     public function wait(Wait $wait): self
     {
-        $wait = $wait->withSource(
-            $this
-                ->source
-                ->maybe()
-                ->keep(Instance::of(Task\PendingActivity::class)),
-        );
+        /** @var Maybe<Task\PendingActivity<Context<C, R>>> */
+        $source = $this
+            ->source
+            ->maybe()
+            ->keep(Instance::of(Task\PendingActivity::class));
+        $wait = $wait->withSource($source);
         $partition = $this->all->partition(
             static fn($task) => $task instanceof Task\PendingActivity,
         );
-        /** @var Sequence<Task\PendingActivity> */
+        /** @var Sequence<Task\PendingActivity<R>> */
         $pending = $partition
             ->get(true)
             ->toSequence()

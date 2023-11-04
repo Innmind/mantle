@@ -12,14 +12,15 @@ use Innmind\Immutable\Sequence;
  *
  * @internal
  * @template C
+ * @template R
  */
 final class Source
 {
-    /** @var callable(C, OperatingSystem, Continuation<C>, Sequence<mixed>): Continuation<C> */
+    /** @var callable(C, OperatingSystem, Continuation<C, R>, Sequence<R>): Continuation<C, R> */
     private $source;
 
     /**
-     * @param callable(C, OperatingSystem, Continuation<C>, Sequence<mixed>): Continuation<C> $source
+     * @param callable(C, OperatingSystem, Continuation<C, R>, Sequence<R>): Continuation<C, R> $source
      */
     private function __construct(callable $source)
     {
@@ -28,10 +29,10 @@ final class Source
 
     /**
      * @param C $carry
-     * @param Continuation<C> $continuation
-     * @param Sequence<mixed> $results
+     * @param Continuation<C, R> $continuation
+     * @param Sequence<R> $results
      *
-     * @return Continuation<C>
+     * @return Continuation<C, R>
      */
     public function __invoke(
         mixed $carry,
@@ -44,10 +45,11 @@ final class Source
 
     /**
      * @template A
+     * @template B
      *
-     * @param callable(A, OperatingSystem, Continuation<A>, Sequence<mixed>): Continuation<A> $source
+     * @param callable(A, OperatingSystem, Continuation<A, B>, Sequence<B>): Continuation<A, B> $source
      *
-     * @return self<A>
+     * @return self<A, B>
      */
     public static function of(callable $source): self
     {

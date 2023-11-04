@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
+use Innmind\Mantle\Source\Context;
 use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\TimeContinuum\{
     ElapsedPeriod,
@@ -17,18 +18,20 @@ use Innmind\Immutable\{
 
 /**
  * @internal
+ * @template C
+ * @template R
  */
 final class Wait
 {
     private OperatingSystem $os;
-    /** @var Maybe<Task\PendingActivity> */
+    /** @var Maybe<Task\PendingActivity<Context<C, R>>> */
     private Maybe $source;
-    /** @var Sequence<Task\PendingActivity> */
+    /** @var Sequence<Task\PendingActivity<R>> */
     private Sequence $tasks;
 
     /**
-     * @param Maybe<Task\PendingActivity> $source
-     * @param Sequence<Task\PendingActivity> $tasks
+     * @param Maybe<Task\PendingActivity<Context<C, R>>> $source
+     * @param Sequence<Task\PendingActivity<R>> $tasks
      */
     private function __construct(
         OperatingSystem $os,
@@ -41,7 +44,10 @@ final class Wait
     }
 
     /**
-     * @return array{Maybe<Task\PendingActivity|Task\Activated>, Sequence<Task\PendingActivity|Task\Activated>}
+     * @return array{
+     *     Maybe<Task\PendingActivity<Context<C, R>>|Task\Activated<Context<C, R>>>,
+     *     Sequence<Task\PendingActivity<R>|Task\Activated<R>>
+     * }
      */
     public function __invoke(): array
     {
@@ -128,20 +134,31 @@ final class Wait
 
     public static function new(OperatingSystem $os): self
     {
-        /** @var Maybe<Task\PendingActivity> */
+        /** @var Maybe<Task\PendingActivity<Context<mixed, mixed>>> */
         $source = Maybe::nothing();
 
         return new self($os, $source, Sequence::of());
     }
 
     /**
-     * @param Maybe<Task\PendingActivity> $source
+     * @template A
+     * @template B
+     *
+     * @param Maybe<Task\PendingActivity<Context<A, B>>> $source
+     *
+     * @return self<A, B>
      */
     public function withSource(Maybe $source): self
     {
+        /** @psalm-suppress InvalidArgument Force erase the type on purpose */
         return new self($this->os, $source, $this->tasks);
     }
 
+    /**
+     * @param Task\PendingActivity<R> $task
+     *
+     * @return self<C, R>
+     */
     public function with(Task\PendingActivity $task): self
     {
         return new self($this->os, $this->source, $this->tasks->add($task));
@@ -150,7 +167,10 @@ final class Wait
     /**
      * @param Maybe<Ready> $ready
      *
-     * @return array{Maybe<Task\PendingActivity|Task\Activated>, Sequence<Task\PendingActivity|Task\Activated>}
+     * @return array{
+     *     Maybe<Task\PendingActivity<Context<C, R>>|Task\Activated<Context<C, R>>>,
+     *     Sequence<Task\PendingActivity<R>|Task\Activated<R>>
+     * }
      */
     private function continue(
         ElapsedPeriod $took,
