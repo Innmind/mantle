@@ -46,14 +46,13 @@ final class BrandNew
      */
     public function continue(OperatingSystem $os): PendingActivity|Terminated
     {
-        /** @var mixed */
         $returned = $this->task->continue($os);
 
         if ($returned instanceof Suspend\Action) {
             return PendingActivity::of($this->task, $returned);
         }
 
-        return Terminated::of($this->task, $returned);
+        return Terminated::of($returned);
     }
 
     /**

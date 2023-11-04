@@ -48,14 +48,13 @@ final class Activated
      */
     public function continue(OperatingSystem $os): PendingActivity|Terminated
     {
-        /** @var mixed */
         $returned = $this->task->resume($this->toSend);
 
         if ($returned instanceof Suspend\Action) {
             return PendingActivity::of($this->task, $returned);
         }
 
-        return Terminated::of($this->task, $returned);
+        return Terminated::of($returned);
     }
 
     /**

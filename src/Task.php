@@ -32,13 +32,14 @@ final class Task
         return new self(new \Fiber($task));
     }
 
+    /**
+     * @return R|Suspend\Action
+     */
     public function continue(OperatingSystem $synchronous): mixed
     {
-        $returned = null;
-
         if (!$this->fiber->isStarted()) {
             $suspend = Suspend::new();
-            /** @var mixed */
+            /** @var R|Suspend\Action */
             $returned = $this->fiber->start($synchronous->map(
                 static fn($_, $config) => Factory::build(
                     $config
@@ -53,25 +54,32 @@ final class Task
             return $this->next($returned);
         }
 
-        if (!$this->fiber->isTerminated()) {
-            /** @var mixed */
-            $returned = $this->fiber->resume();
-        }
+        /** @var R|Suspend\Action */
+        $returned = $this->fiber->resume();
 
         return $this->next($returned);
     }
 
+    /**
+     * @return R|Suspend\Action
+     */
     public function resume(mixed $toSend): mixed
     {
-        /** @var mixed */
+        /** @var R|Suspend\Action */
         $returned = $this->fiber->resume($toSend);
 
         return $this->next($returned);
     }
 
+    /**
+     * @param R|Suspend\Action $returned
+     *
+     * @return R|Suspend\Action
+     */
     private function next(mixed $returned): mixed
     {
         if ($this->fiber->isTerminated()) {
+            /** @var R */
             return $this->fiber->getReturn();
         }
 

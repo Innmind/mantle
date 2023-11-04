@@ -3,8 +3,6 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle\Task;
 
-use Innmind\Mantle\Task;
-
 /**
  * @internal
  * @psalm-immutable
@@ -12,18 +10,14 @@ use Innmind\Mantle\Task;
  */
 final class Terminated
 {
-    /** @var Task<T> */
-    private Task $task;
     /** @var T */
     private mixed $returned;
 
     /**
-     * @param Task<T> $task
      * @param T $returned
      */
-    private function __construct(Task $task, mixed $returned)
+    private function __construct(mixed $returned)
     {
-        $this->task = $task;
         $this->returned = $returned;
     }
 
@@ -31,14 +25,13 @@ final class Terminated
      * @psalm-pure
      * @template A
      *
-     * @param Task<A> $task
      * @param A $returned
      *
      * @return self<A>
      */
-    public static function of(Task $task, mixed $returned): self
+    public static function of(mixed $returned): self
     {
-        return new self($task, $returned);
+        return new self($returned);
     }
 
     /**
