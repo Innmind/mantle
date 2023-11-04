@@ -84,8 +84,7 @@ final class Watch implements Action
 
     public function continue(
         ElapsedPeriod $took,
-        Set $toRead,
-        Set $toWrite,
+        Maybe $ready,
     ): Either {
         $timedOut = $this
             ->timeout
@@ -106,8 +105,20 @@ final class Watch implements Action
             )));
         }
 
-        $ownToRead = $toRead->intersect($this->forRead);
-        $ownToWrite = $toWrite->intersect($this->forWrite);
+        /** @var Either<Maybe<Ready>, Action<Maybe<Ready>>> */
+        return $ready->match(
+            fn($ready) => $this->continueOnReady($took, $ready),
+            static fn() => Either::left(Maybe::nothing()), // notify each fiber that we failed to watch the streams
+        );
+    }
+
+    /**
+     * @return Either<Maybe<Ready>, Action<Maybe<Ready>>>
+     */
+    private function continueOnReady(ElapsedPeriod $took, Ready $ready): Either
+    {
+        $ownToRead = $ready->toRead()->intersect($this->forRead);
+        $ownToWrite = $ready->toWrite()->intersect($this->forWrite);
 
         if ($ownToRead->empty() && $ownToWrite->empty()) {
             /** @var Either<Maybe<Ready>, Action<Maybe<Ready>>> */

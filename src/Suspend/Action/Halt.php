@@ -13,6 +13,7 @@ use Innmind\TimeWarp\PeriodToMilliseconds;
 use Innmind\Stream\{
     Readable,
     Writable,
+    Watch\Ready,
 };
 use Innmind\Immutable\{
     Maybe,
@@ -71,8 +72,7 @@ final class Halt implements Action
 
     public function continue(
         ElapsedPeriod $took,
-        Set $toRead,
-        Set $toWrite,
+        Maybe $ready,
     ): Either {
         if ($this->period->longerThan($took)) {
             /** @var positive-int */

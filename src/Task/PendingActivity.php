@@ -8,11 +8,8 @@ use Innmind\Mantle\{
     Suspend,
 };
 use Innmind\TimeContinuum\ElapsedPeriod;
-use Innmind\Stream\{
-    Readable,
-    Writable,
-};
-use Innmind\Immutable\Set;
+use Innmind\Stream\Watch\Ready;
+use Innmind\Immutable\Maybe;
 
 /**
  * @internal
@@ -40,17 +37,15 @@ final class PendingActivity
     }
 
     /**
-     * @param Set<Readable> $toRead
-     * @param Set<Writable> $toWrite
+     * @param Maybe<Ready> $ready
      */
     public function continue(
         ElapsedPeriod $took,
-        Set $toRead,
-        Set $toWrite,
+        Maybe $ready,
     ): self|Activated {
         return $this
             ->action
-            ->continue($took, $toRead, $toWrite)
+            ->continue($took, $ready)
             ->match(
                 fn($action) => new self($this->task, $action),
                 fn($toSend) => Activated::of($this->task, $toSend),

@@ -8,10 +8,7 @@ use Innmind\TimeContinuum\{
     ElapsedPeriod,
     Earth\Period\Millisecond,
 };
-use Innmind\Stream\{
-    Readable,
-    Writable,
-};
+use Innmind\Stream\Watch\Ready;
 use Innmind\Immutable\{
     Sequence,
     Set,
@@ -82,7 +79,10 @@ final class Wait
             );
             $took = $this->os->clock()->now()->elapsedSince($started);
 
-            return $this->continue($took, $forRead, $forWrite);
+            return $this->continue($took, Maybe::just(new Ready(
+                Set::of(),
+                Set::of(),
+            )));
         }
 
         $timeout = $shortestTimeout->match(
@@ -105,14 +105,7 @@ final class Wait
 
         return $this->continue(
             $took,
-            $ready
-                ->toSequence()
-                ->toSet()
-                ->flatMap(static fn($ready) => $ready->toRead()),
-            $ready
-                ->toSequence()
-                ->toSet()
-                ->flatMap(static fn($ready) => $ready->toWrite()),
+            $ready,
         );
     }
 
@@ -127,20 +120,17 @@ final class Wait
     }
 
     /**
-     * @param Set<Readable> $toRead
-     * @param Set<Writable> $toWrite
+     * @param Maybe<Ready> $ready
      *
      * @return Sequence<Task\PendingActivity|Task\Activated>
      */
     private function continue(
         ElapsedPeriod $took,
-        Set $toRead,
-        Set $toWrite,
+        Maybe $ready,
     ): Sequence {
         return $this->tasks->map(static fn($task) => $task->continue(
             $took,
-            $toRead,
-            $toWrite,
+            $ready,
         ));
     }
 }

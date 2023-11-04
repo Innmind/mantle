@@ -7,6 +7,7 @@ use Innmind\TimeContinuum\ElapsedPeriod;
 use Innmind\Stream\{
     Readable,
     Writable,
+    Watch\Ready,
 };
 use Innmind\Immutable\{
     Maybe,
@@ -37,14 +38,12 @@ interface Action
     public function forWrite(): Set;
 
     /**
-     * @param Set<Readable> $toRead
-     * @param Set<Writable> $toWrite
+     * @param Maybe<Ready> $ready
      *
      * @return Either<T, self<T>>
      */
     public function continue(
         ElapsedPeriod $took,
-        Set $toRead,
-        Set $toWrite,
+        Maybe $ready,
     ): Either;
 }
