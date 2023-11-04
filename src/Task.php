@@ -35,27 +35,20 @@ final class Task
     /**
      * @return R|Suspend\Action
      */
-    public function continue(OperatingSystem $synchronous): mixed
+    public function start(OperatingSystem $synchronous): mixed
     {
-        if (!$this->fiber->isStarted()) {
-            $suspend = Suspend::new();
-            /** @var R|Suspend\Action */
-            $returned = $this->fiber->start($synchronous->map(
-                static fn($_, $config) => Factory::build(
-                    $config
-                        ->useStreamCapabilities(Asynchronous\Stream\Capabilities::of(
-                            $suspend,
-                            $config->streamCapabilities(),
-                        ))
-                        ->haltProcessVia(Asynchronous\Halt::of($suspend)),
-                ),
-            ));
-
-            return $this->next($returned);
-        }
-
+        $suspend = Suspend::new();
         /** @var R|Suspend\Action */
-        $returned = $this->fiber->resume();
+        $returned = $this->fiber->start($synchronous->map(
+            static fn($_, $config) => Factory::build(
+                $config
+                    ->useStreamCapabilities(Asynchronous\Stream\Capabilities::of(
+                        $suspend,
+                        $config->streamCapabilities(),
+                    ))
+                    ->haltProcessVia(Asynchronous\Halt::of($suspend)),
+            ),
+        ));
 
         return $this->next($returned);
     }
