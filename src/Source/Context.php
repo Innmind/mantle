@@ -70,10 +70,30 @@ final class Context
 
     /**
      * @param Sequence<R> $results
+     *
+     * @return self<C, R>
      */
     public function withResults(Sequence $results): self
     {
         return new self($this->source, $this->continuation, $results);
+    }
+
+    /**
+     * @template R1
+     * @template R2
+     *
+     * @param callable(Source<C, R>, C): R1 $resume
+     * @param callable(C): R2 $terminate
+     *
+     * @return R1|R2
+     */
+    public function match(callable $resume, callable $terminate): mixed
+    {
+        /** @psalm-suppress MixedArgument */
+        return $this->continuation->match(
+            fn($carry) => $resume($this->source, $carry),
+            static fn($carry) => $terminate($carry),
+        );
     }
 
     /**

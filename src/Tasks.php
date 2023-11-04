@@ -112,9 +112,8 @@ final class Tasks
         $source = $source->flatMap(static fn($task) => match (true) {
             $task instanceof Task\Terminated && $task->returned() instanceof Context => $task
                 ->returned()
-                ->continuation()
                 ->match(
-                    static fn() => Either::right($task->returned()),
+                    static fn($source, $carry) => Either::right(Context::of($source, $carry)),
                     static fn($carry) => Either::left($carry),
                 ),
             default => Either::right($task),

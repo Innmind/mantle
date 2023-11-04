@@ -116,12 +116,15 @@ final class Wait
             static fn() => null,
         );
         /** @psalm-suppress InvalidArgument */
-        $watch = $this
-            ->os
-            ->sockets()
-            ->watch($timeout)
-            ->forRead(...$forRead->toList())
-            ->forWrite(...$forWrite->toList());
+        $watch = $this->os->sockets()->watch($timeout);
+        $watch = $forRead->sort(fn($a, $b) => 0)->match(
+            static fn($read, $rest) => $watch->forRead($read, ...$rest->toList()),
+            static fn() => $watch,
+        );
+        $watch = $forWrite->sort(fn($a, $b) => 0)->match(
+            static fn($write, $rest) => $watch->forWrite($write, ...$rest->toList()),
+            static fn() => $watch,
+        );
 
         $ready = $watch();
         $took = $this->os->clock()->now()->elapsedSince($started);
