@@ -50,7 +50,7 @@ final class Watch implements WatchInterface
 
     public function __invoke(): Maybe
     {
-        return ($this->suspend)(Suspend\Action\Watch::of(
+        return ($this->suspend)(Suspend\Watch::of(
             $this->timeout,
             $this->forRead,
             $this->forWrite,

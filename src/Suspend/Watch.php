@@ -1,9 +1,8 @@
 <?php
 declare(strict_types = 1);
 
-namespace Innmind\Mantle\Suspend\Action;
+namespace Innmind\Mantle\Suspend;
 
-use Innmind\Mantle\Suspend\Action;
 use Innmind\TimeContinuum\{
     ElapsedPeriod,
     Earth,
