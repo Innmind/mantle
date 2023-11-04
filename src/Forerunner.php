@@ -5,6 +5,7 @@ namespace Innmind\Mantle;
 
 use Innmind\Mantle\Source\Continuation;
 use Innmind\OperatingSystem\OperatingSystem;
+use Innmind\Immutable\Sequence;
 
 final class Forerunner
 {
@@ -19,7 +20,7 @@ final class Forerunner
      * @template C
      *
      * @param C $carry
-     * @param callable(C, OperatingSystem, Continuation<C>): Continuation<C> $source
+     * @param callable(C, OperatingSystem, Continuation<C>, Sequence<mixed>): Continuation<C> $source
      *
      * @return C
      */

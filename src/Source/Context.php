@@ -5,6 +5,7 @@ namespace Innmind\Mantle\Source;
 
 use Innmind\Mantle\Source;
 use Innmind\OperatingSystem\OperatingSystem;
+use Innmind\Immutable\Sequence;
 
 /**
  * @internal
@@ -16,15 +17,22 @@ final class Context
     private Source $source;
     /** @var Continuation<C> */
     private Continuation $continuation;
+    /** @var Sequence<mixed> */
+    private Sequence $results;
 
     /**
      * @param Source<C> $source
      * @param Continuation<C> $continuation
+     * @param Sequence<mixed> $results
      */
-    private function __construct(Source $source, Continuation $continuation)
-    {
+    private function __construct(
+        Source $source,
+        Continuation $continuation,
+        Sequence $results,
+    ) {
         $this->source = $source;
         $this->continuation = $continuation;
+        $this->results = $results;
     }
 
     /**
@@ -36,9 +44,10 @@ final class Context
             $this->continuation->carry(),
             $os,
             $this->continuation,
+            $this->results,
         );
 
-        return new self($this->source, $continuation);
+        return new self($this->source, $continuation, Sequence::of());
     }
 
     /**
@@ -51,7 +60,15 @@ final class Context
      */
     public static function of(Source $source, mixed $carry): self
     {
-        return new self($source, Continuation::of($carry));
+        return new self($source, Continuation::of($carry), Sequence::of());
+    }
+
+    /**
+     * @param Sequence<mixed> $results
+     */
+    public function withResults(Sequence $results): self
+    {
+        return new self($this->source, $this->continuation, $results);
     }
 
     /**

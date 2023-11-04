@@ -17,7 +17,7 @@ use Innmind\Immutable\{
  */
 final class Tasks
 {
-    /** @var Either<C, Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> */
+    /** @var Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated> */
     private Either $source;
     /** @var Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> */
     private Sequence $all;
@@ -25,7 +25,7 @@ final class Tasks
     /**
      * @psalm-mutation-free
      *
-     * @param Either<C, Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> $source
+     * @param Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated> $source
      * @param Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated|Task\Terminated> $all
      */
     private function __construct(Either $source, Sequence $all)
@@ -44,7 +44,7 @@ final class Tasks
     public static function of(Context $source): self
     {
         return new self(
-            Either::right(Task\BrandNew::of(Task::of($source))),
+            Either::right($source),
             Sequence::of(),
         );
     }
@@ -54,12 +54,26 @@ final class Tasks
      */
     public function continue(OperatingSystem $os): self
     {
+        $partition = $this->all->partition(Instance::of(Task\Terminated::class));
+        $terminated = $partition
+            ->get(true)
+            ->toSequence()
+            ->flatMap(static fn($tasks) => $tasks)
+            ->keep(Instance::of(Task\Terminated::class)) // to please psalm
+            ->map(static fn($task): mixed => $task->returned());
+        /** @var Sequence<Task\BrandNew|Task\PendingActivity|Task\Activated> */
+        $active = $partition
+            ->get(false)
+            ->toSequence()
+            ->flatMap(static fn($tasks) => $tasks);
         // Start the source fiber if it's brand new or resume it if it has been
         // activated in a previous iteration
         $source = $this
             ->source
             ->flatMap(static fn($task) => match (true) {
-                $task instanceof Task\BrandNew => Either::right($task),
+                $task instanceof Context => Either::right(Task\BrandNew::of(Task::of(
+                    $task->withResults($terminated),
+                ))),
                 $task instanceof Task\Activated => Either::right($task),
                 default => Either::left($task)
             })
@@ -87,19 +101,22 @@ final class Tasks
         // If the source fiber has terminated but the continuation tells that
         // the source can be resumed then we the source in a brand new task.
         // If none of the above then we leave it as is, meaning pending or activated
-        /** @psalm-suppress MixedArgument Psalm lose the type of the returned value */
+        /**
+         * @psalm-suppress MixedArgument Psalm lose the type of the returned value
+         * @var Either<C, Context|Task\PendingActivity|Task\Activated|Task\Terminated>
+         */
         $source = $source->flatMap(static fn($task) => match (true) {
             $task instanceof Task\Terminated && $task->returned() instanceof Context => $task
                 ->returned()
                 ->continuation()
                 ->match(
-                    static fn() => Either::right(Task\BrandNew::of(Task::of($task->returned()))),
+                    static fn() => Either::right($task->returned()),
                     static fn($carry) => Either::left($carry),
                 ),
             default => Either::right($task),
         });
 
-        $partition = $this->all->partition(
+        $partition = $active->partition(
             static fn($task) => $task instanceof Task\BrandNew ||
                 $task instanceof Task\Activated,
         );
@@ -109,7 +126,7 @@ final class Tasks
             ->get(true)
             ->toSequence()
             ->flatMap(static fn($tasks) => $tasks);
-        /** @var Sequence<Task\PendingActivity|Task\Terminated> */
+        /** @var Sequence<Task\PendingActivity> */
         $nonActionable = $partition
             ->get(false)
             ->toSequence()
