@@ -9,7 +9,10 @@ use Innmind\TimeContinuum\{
     ElapsedPeriod,
     Earth\Period\Millisecond,
 };
-use Innmind\Stream\Watch\Ready;
+use Innmind\Stream\{
+    Stream,
+    Watch\Ready,
+};
 use Innmind\Immutable\{
     Sequence,
     Set,
@@ -126,7 +129,23 @@ final class Wait
             static fn() => $watch,
         );
 
-        $ready = $watch();
+        // File streams are watched to allow walking over them asynchronously
+        // between tasks. Technically a file is always readable from PHP point
+        // of view. However when multiple files are watched via `stream_select`
+        // even if a file as reached the end before another one it will wait
+        // before all of them reach the end to flag all of them as EOF at the
+        // same time. The problem with this behaviour is that essentially it
+        // synchronizes all tasks, thus losing the advantage of running them
+        // concurrently.
+        // To circumvent this we add manually all file streams that have no data
+        // left to read, thus the target code will read the stream and they'll
+        // be flagged as EOF.
+        // This hack SHOULD NOT pose any side effects, however if you land here
+        // it may mean it does. In such case I have no idea how to fix it :/
+        $ready = $watch()->map(static fn($ready) => new Ready(
+            $ready->toRead()->merge($forRead->filter(self::isFile(...))),
+            $ready->toWrite(),
+        ));
         $took = $this->os->clock()->now()->elapsedSince($started);
 
         return $this->continue(
@@ -189,5 +208,13 @@ final class Wait
         ));
 
         return [$source, $tasks];
+    }
+
+    private static function isFile(Stream $stream): bool
+    {
+        $meta = \stream_get_meta_data($stream->resource());
+
+        // stdin, stdout and stderr are not seekable
+        return $meta['seekable'] && \substr($meta['uri'], 0, 9) !== 'php://std';
     }
 }

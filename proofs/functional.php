@@ -109,7 +109,7 @@ return static function() {
     );
 
     yield test(
-        'Streams are handled asynchronously',
+        'Streams read by lines are handled asynchronously',
         static function($assert) {
             $lines = [];
             Forerunner::of(Factory::build())(null, Predetermined::of(
@@ -173,6 +173,60 @@ return static function() {
             $assert->same(
                 ['{', 'MIT License', 'SOFTWARE.', '}'],
                 $lines,
+            );
+        },
+    );
+
+    yield test(
+        'Streams read by chunks are handled asynchronously',
+        static function($assert) {
+            $chunks = [];
+            Forerunner::of(Factory::build())(null, Predetermined::of(
+                static function($os) use ($assert, &$chunks) {
+                    $file = $os
+                        ->filesystem()
+                        ->mount(Path::of('./'))
+                        ->get(Name::of('composer.lock'))
+                        ->match(
+                            static fn($file) => $file,
+                            static fn() => null,
+                        );
+                    $assert->not()->null($file);
+                    $chunks[] = $file
+                        ->content()
+                        ->chunks()
+                        ->last()
+                        ->match(
+                            static fn($chunk) => $chunk->takeEnd(5)->toString(),
+                            static fn() => null,
+                        );
+                },
+                static function($os) use ($assert, &$chunks) {
+                    $file = $os
+                        ->filesystem()
+                        ->mount(Path::of('./'))
+                        ->get(Name::of('LICENSE'))
+                        ->match(
+                            static fn($file) => $file,
+                            static fn() => null,
+                        );
+                    $assert->not()->null($file);
+                    $chunks[] = $file
+                        ->content()
+                        ->chunks()
+                        ->last()
+                        ->match(
+                            static fn($chunk) => $chunk->takeEnd(5)->toString(),
+                            static fn() => null,
+                        );
+                },
+            ));
+            // since the license file is shorter it finishes first even though
+            // it started after reading the composer.lock file thus showing the
+            // chunks are synchronously
+            $assert->same(
+                ["ARE.\n", "0\"\n}\n"],
+                $chunks,
             );
         },
     )->tag(Tag::wip);
