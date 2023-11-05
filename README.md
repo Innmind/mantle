@@ -85,7 +85,7 @@ $run = Forerunner::of(Factory::build());
             $users,
             static fn(int $total, int $result): int => $total + $result,
         );
-        $continuation = $continuation->carryWith([$users, $finished]);
+        $continuation = $continuation->carryWith([$users, $finished, $launched]);
 
         if ($finished === 2) {
             $continuation = $continuation->terminate();
