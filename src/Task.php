@@ -3,10 +3,18 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\Strategy;
-use Innmind\TimeContinuum\Clock;
-use Innmind\Immutable\Sequence;
+use Innmind\OperatingSystem\{
+    Factory,
+    OperatingSystem,
+};
+use Innmind\TimeContinuum\Earth\{
+    ElapsedPeriod,
+    Period\Millisecond,
+};
 
+/**
+ * @template R
+ */
 final class Task
 {
     private \Fiber $fiber;
@@ -17,7 +25,11 @@ final class Task
     }
 
     /**
-     * @param callable(Suspend): void $task
+     * @template A
+     *
+     * @param callable(OperatingSystem): A $task
+     *
+     * @return self<A>
      */
     public static function of(callable $task): self
     {
@@ -25,33 +37,59 @@ final class Task
     }
 
     /**
-     * @param callable(): Strategy $strategy
+     * @internal
      *
-     * @return Sequence<self> Returns a Sequence for an easier integration in Forerunner
+     * @return R|Suspend\Action
      */
-    public function continue(Clock $clock, callable $strategy): Sequence
+    public function start(OperatingSystem $synchronous): mixed
     {
-        if (!$this->fiber->isStarted()) {
-            $this->fiber->start(Suspend::of($clock, $strategy()));
+        $suspend = Suspend::new();
+        /** @var R|Suspend\Action */
+        $returned = $this->fiber->start($synchronous->map(
+            static fn($_, $config) => Factory::build(
+                $config
+                    ->useStreamCapabilities(Asynchronous\Stream\Capabilities::of(
+                        $suspend,
+                        $config->streamCapabilities(),
+                    ))
+                    ->haltProcessVia(Asynchronous\Halt::of($suspend))
+                    ->withHttpHeartbeat(
+                        ElapsedPeriod::of(10), // this is blocking the active task so it needs to be low
+                        static fn() => $suspend(Suspend\Halt::of( // this allows to jump between tasks
+                            Millisecond::of(1),
+                        )),
+                    ),
+            ),
+        ));
 
-            return $this->next();
-        }
-
-        if (!$this->fiber->isTerminated()) {
-            $this->fiber->resume();
-        }
-
-        return $this->next();
+        return $this->next($returned);
     }
 
     /**
-     * @return Sequence<self>
+     * @internal
+     *
+     * @return R|Suspend\Action
      */
-    private function next(): Sequence
+    public function resume(mixed $toSend): mixed
     {
-        return match (!$this->fiber->isTerminated()) {
-            true => Sequence::of($this),
-            false => Sequence::of(),
-        };
+        /** @var R|Suspend\Action */
+        $returned = $this->fiber->resume($toSend);
+
+        return $this->next($returned);
+    }
+
+    /**
+     * @param R|Suspend\Action $returned
+     *
+     * @return R|Suspend\Action
+     */
+    private function next(mixed $returned): mixed
+    {
+        if ($this->fiber->isTerminated()) {
+            /** @var R */
+            return $this->fiber->getReturn();
+        }
+
+        return $returned;
     }
 }
