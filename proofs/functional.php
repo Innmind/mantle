@@ -9,7 +9,15 @@ use Innmind\Mantle\{
 use Innmind\OperatingSystem\Factory;
 use Innmind\TimeContinuum\Earth\Period\Second;
 use Innmind\Filesystem\Name;
-use Innmind\Url\Path;
+use Innmind\Http\{
+    Request,
+    Method,
+    ProtocolVersion,
+};
+use Innmind\Url\{
+    Url,
+    Path,
+};
 use Innmind\Immutable\Sequence;
 use Innmind\BlackBox\Set;
 
@@ -226,6 +234,48 @@ return static function() {
             $assert->same(
                 ["ARE.\n", "0\"\n}\n"],
                 $chunks,
+            );
+        },
+    );
+
+    yield test(
+        'HTTP requests are handled asynchronously',
+        static function($assert) {
+            $order = [];
+            Forerunner::of(Factory::build())(null, Predetermined::of(
+                static function($os) use ($assert, &$order) {
+                    $os
+                        ->remote()
+                        ->http()(Request::of(
+                            Url::of('https://httpbin.org/delay/2'),
+                            Method::get,
+                            ProtocolVersion::v11,
+                        ))
+                        ->match(
+                            static fn() => null,
+                            static fn() => null,
+                        );
+                    $order[] = 'first';
+                },
+                static function($os) use ($assert, &$order) {
+                    $os
+                        ->remote()
+                        ->http()(Request::of(
+                            Url::of('https://httpbin.org/delay/1'),
+                            Method::get,
+                            ProtocolVersion::v11,
+                        ))
+                        ->match(
+                            static fn() => null,
+                            static fn() => null,
+                        );
+                    $order[] = 'second';
+                },
+            ));
+
+            $assert->same(
+                ['second', 'first'],
+                $order,
             );
         },
     );

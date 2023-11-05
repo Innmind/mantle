@@ -7,6 +7,10 @@ use Innmind\OperatingSystem\{
     Factory,
     OperatingSystem,
 };
+use Innmind\TimeContinuum\Earth\{
+    ElapsedPeriod,
+    Period\Millisecond,
+};
 
 /**
  * @template R
@@ -46,7 +50,13 @@ final class Task
                         $suspend,
                         $config->streamCapabilities(),
                     ))
-                    ->haltProcessVia(Asynchronous\Halt::of($suspend)),
+                    ->haltProcessVia(Asynchronous\Halt::of($suspend))
+                    ->withHttpHeartbeat(
+                        ElapsedPeriod::of(10), // this is blocking the active task so it needs to be low
+                        static fn() => $suspend(Suspend\Halt::of( // this allows to jump between tasks
+                            Millisecond::of(1),
+                        )),
+                    ),
             ),
         ));
 
