@@ -37,6 +37,8 @@ final class Task
     }
 
     /**
+     * @internal
+     *
      * @return R|Suspend\Action
      */
     public function start(OperatingSystem $synchronous): mixed
@@ -64,6 +66,8 @@ final class Task
     }
 
     /**
+     * @internal
+     *
      * @return R|Suspend\Action
      */
     public function resume(mixed $toSend): mixed
