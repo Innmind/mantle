@@ -27,6 +27,7 @@ use Innmind\OperatingSystem\{
     OperatingSystem,
 };
 use Innmind\Filesystem\Name;
+use Innmind\HttpTransport\Success;
 use Innmind\Http\{
     Request,
     Method,
@@ -41,7 +42,7 @@ use Innmind\Immutable\Sequence;
 $run = Forerunner::of(Factory::build());
 [$users] = $run(
     [0, 0, false],
-    static function(array $carry, OperatingSystem $os, Continuation $continuation, Sequence $results) {
+    static function(array $carry, OperatingSystem $os, Continuation $continuation, Sequence $results): Continuation {
         [$users, $finished, $launched] = $carry;
 
         if (!$launched) {
@@ -49,21 +50,21 @@ $run = Forerunner::of(Factory::build());
                 ->carryWith([$users, $finished, true])
                 ->launch(Sequence::of(
                     Task::of(
-                        static fn(OperatingSystem $os) => $os
+                        static fn(OperatingSystem $os): int => $os
                             ->remote()
                             ->http()(Request::of(
                                 Url::of('http://some-service.tld/users/count'),
                                 Method::get,
                                 ProtocolVersion::v11,
                             ))
-                            ->map(static fn($success) => $success->response()->body()->toString())
+                            ->map(static fn(Success $success): string => $success->response()->body()->toString())
                             ->match(
-                                static fn($response) => (int) $response,
+                                static fn(string $response): int => (int) $response,
                                 static fn() => throw new \RuntimeException('Failed to count the users'),
                             ),
                     ),
                     Task::of(
-                        static fn(OperatingSystem $os) => $os
+                        static fn(OperatingSystem $os): int => $os
                             ->filesystem()
                             ->mount(Path::of('some/directory/'))
                             ->get(Name::of('users.csv'))
@@ -71,7 +72,7 @@ $run = Forerunner::of(Factory::build());
                             ->match(
                                 static fn(Sequence $lines) => $lines->reduce(
                                     0,
-                                    static fn($total) => $total + 1,
+                                    static fn(int $total): int => $total + 1,
                                 ),
                                 static fn() => throw new \RuntimeException('Users file not found'),
                             ),
@@ -82,7 +83,7 @@ $run = Forerunner::of(Factory::build());
         $finished += $results->size();
         $users = $results->reduce(
             $users,
-            static fn($total, $result) => $total + $result,
+            static fn(int $total, int $result): int => $total + $result,
         );
         $continuation = $continuation->carryWith([$users, $finished]);
 
