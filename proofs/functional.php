@@ -12,7 +12,6 @@ use Innmind\Filesystem\Name;
 use Innmind\Url\Path;
 use Innmind\Immutable\Sequence;
 use Innmind\BlackBox\Set;
-use Innmind\BlackBox\Tag;
 
 return static function() {
     yield test(
@@ -229,5 +228,5 @@ return static function() {
                 $chunks,
             );
         },
-    )->tag(Tag::wip);
+    );
 };
