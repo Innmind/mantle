@@ -106,6 +106,18 @@ The source will launch 2 tasks if not already done; the first one does an HTTP c
 
 When the source calls `->terminate()` and that all tasks are finished then `$run()` returns the carried value. Here it will assign the aggregation of both tasks results to the value `$users`.
 
+> **Note**
+> As long as you use the `$os` abstraction passed as arguments the system will automatically suspend your code when necessary. This means that you don't even need to think about it.
+
+> **Note**
+> The source `callable` is also run asynchronously. This means that you can use it to build a socket server and wait indefinitely for new connections without impacting the execution of already started tasks.
+
+> **Warning**
+> Do NOT return the `$os` variable outside of the tasks or the source as it may break your code.
+
+> **Note**
+> Since this package has been designed by only passing arguments (no global state) it means that you can compose the use of `Forerunner`, this means that you can run a new instance of `Forerunner` inside a task and it will behave transparently. (Although this feature as not been tested yet!)
+
 ## Limitations
 
 ### Signals
