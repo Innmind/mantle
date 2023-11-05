@@ -54,14 +54,4 @@ final class BrandNew
 
         return Terminated::of($returned);
     }
-
-    /**
-     * @psalm-mutation-free
-     *
-     * @return Task<T>
-     */
-    public function task(): Task
-    {
-        return $this->task;
-    }
 }

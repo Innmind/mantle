@@ -65,16 +65,6 @@ final class PendingActivity
 
     /**
      * @psalm-mutation-free
-     *
-     * @return Task<T>
-     */
-    public function task(): Task
-    {
-        return $this->task;
-    }
-
-    /**
-     * @psalm-mutation-free
      */
     public function action(): Suspend\Action
     {
