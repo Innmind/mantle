@@ -96,7 +96,7 @@ $run = Forerunner::of(Factory::build());
 );
 ```
 
-This example count a number of `$users` coming from 2 sources.
+This example counts a number of `$users` coming from 2 sources.
 
 The `Forerunner` object behaves as a _reduce_ operation, that's why it has 2 arguments: a carried value and a reducer (called a source in this package).
 
