@@ -120,8 +120,9 @@ final class Tasks
         });
 
         $partition = $active->partition(
-            static fn($task) => $task instanceof Task\BrandNew ||
-                $task instanceof Task\Activated,
+            Instance::of(Task\BrandNew::class)->or(
+                Instance::of(Task\Activated::class),
+            ),
         );
 
         /** @var Sequence<Task\BrandNew<R>|Task\Activated<R>> */
@@ -157,7 +158,7 @@ final class Tasks
             ->keep(Instance::of(Task\PendingActivity::class));
         $wait = $wait->withSource($source);
         $partition = $this->all->partition(
-            static fn($task) => $task instanceof Task\PendingActivity,
+            Instance::of(Task\PendingActivity::class),
         );
         /** @var Sequence<Task\PendingActivity<R>> */
         $pending = $partition
@@ -208,12 +209,9 @@ final class Tasks
             return true;
         }
 
-        /**
-         * @todo build an Or predicate in innmind/immutable
-         */
         return !$this
             ->all
-            ->filter(static fn($task) => !($task instanceof Task\Terminated))
+            ->exclude(Instance::of(Task\Terminated::class))
             ->empty();
     }
 }
