@@ -4,9 +4,9 @@
 [![codecov](https://codecov.io/gh/innmind/mantle/branch/develop/graph/badge.svg)](https://codecov.io/gh/innmind/mantle)
 [![Type Coverage](https://shepherd.dev/github/innmind/mantle/coverage.svg)](https://shepherd.dev/github/innmind/mantle)
 
-Minimalist abstraction on top of `Fiber`s to coordinate multiple tasks asynchronously.
+Abstraction on top of `Fiber`s to coordinate multiple tasks asynchronously.
 
-This package is intended for other packages to be built upon, end developers should not directly face this abstraction.
+The goal is to easily move the execution of any code built using [`innmind/operating-system`](https://packagist.org/packages/innmind/operating-system) from a synchronous context to an async one. This means that it's easier to experiment running a piece of code asynchronously and then move back if the experiment is not successful. This also means that you can test each part of an asynchronous system synchronously.
 
 ## Installation
 
@@ -14,33 +14,117 @@ This package is intended for other packages to be built upon, end developers sho
 composer require innmind/mantle
 ```
 
-## Concepts
+## Usage
 
-### Source
+```php
+use Innmind\Mantle\{
+    Forerunner,
+    Task,
+    Source\Continuation,
+};
+use Innmind\OperatingSystem\{
+    Factory,
+    OperatingSystem,
+};
+use Innmind\Filesystem\Name;
+use Innmind\Http\{
+    Request,
+    Method,
+    ProtocolVersion,
+};
+use Innmind\Url\{
+    Url,
+    Path,
+};
+use Innmind\Immutable\Sequence;
 
-A `Source` let _emerge_ `Task`s that needs to be run asynchronously. For example a web server can be a `Source` that will emerge a `Task` when a new connection is received.
+$run = Forerunner::of(Factory::build());
+[$users] = $run(
+    [0, 0, false],
+    static function(array $carry, OperatingSystem $os, Continuation $continuation, Sequence $results) {
+        [$users, $finished, $launched] = $carry;
 
-This packages comes with the following sources:
-- `Predetermined`: accepts a list of `callable`s that can be suspended
-- `Throttle`: limits the number of `Task`s that can be run
+        if (!$launched) {
+            return $continuation
+                ->carryWith([$users, $finished, true])
+                ->launch(Sequence::of(
+                    Task::of(
+                        static fn(OperatingSystem $os) => $os
+                            ->remote()
+                            ->http()(Request::of(
+                                Url::of('http://some-service.tld/users/count'),
+                                Method::get,
+                                ProtocolVersion::v11,
+                            ))
+                            ->map(static fn($success) => $success->response()->body()->toString())
+                            ->match(
+                                static fn($response) => (int) $response,
+                                static fn() => throw new \RuntimeException('Failed to count the users'),
+                            ),
+                    ),
+                    Task::of(
+                        static fn(OperatingSystem $os) => $os
+                            ->filesystem()
+                            ->mount(Path::of('some/directory/'))
+                            ->get(Name::of('users.csv'))
+                            ->map(static fn($file) => $file->content()->lines())
+                            ->match(
+                                static fn(Sequence $lines) => $lines->reduce(
+                                    0,
+                                    static fn($total) => $total + 1,
+                                ),
+                                static fn() => throw new \RuntimeException('Users file not found'),
+                            ),
+                    ),
+                ));
+        }
 
-A `Source` has a notion of `active` to instruct the `Forerunner` if there will be other tasks in the future or not.
+        $finished += $results->size();
+        $users = $results->reduce(
+            $users,
+            static fn($total, $result) => $total + $result,
+        );
+        $continuation = $continuation->carryWith([$users, $finished]);
 
-### Task
+        if ($finished === 2) {
+            $continuation = $continuation->terminate();
+        }
 
-A `Task` takes a `callable` that will be run asynchronously. For the `callable` to effectively run asynchronously it must yield control of the process via the `Suspend` object passed as an argument to it.
+        return $continuation;
+    },
+);
+```
 
-### Suspend
+This example count a number of `$users` coming from 2 sources.
 
-`Suspend` is an object on top of [`Fiber`s](https://www.php.net/manual/en/language.fibers.php) that is only accessible to a `Task` created by a `Source`. When called the `Task` will yield control to allow other `Task`s to run.
+The `Forerunner` object behaves as a _reduce_ operation, that's why it has 2 arguments: a carried value and a reducer (called a source in this package).
 
-The `Suspend` behaviour can be changed with different strategies:
-- `Asynchornous` will yield as soon as `Suspend` is called (default)
-- `Synchronous` will yield only when the `Task` is finished, meaning it reached the end of the `callable`
-- `TimeFrame` will yield control when it exceeds the time frame allowed for a `Task` to run
+The carried value here is an array that holds the number of fetched users, the number of finished tasks and whether it already launched the tasks or not.
 
-### Forerunner
+The source will launch 2 tasks if not already done; the first one does an HTTP call and the second one counts the number of lines in a file. The source will be called again once a task finishes and their results will be available inside the fourth argument `$results`, it will add the number of finished tasks and the number of users to the carried value array. If both tasks are finished then the source calls `$continuation->terminate()` to instruct the loop to stop.
 
-This is the main object that will coordinate all the objects above. It operates as a _reduce like_ operation with a _carried value_ and a `Source` acting as the list `Task`s to reduce. The carried value is accessible everytime the `Source` is called to provide `Task`s.
+When the source calls `->terminate()` and that all tasks are finished then `$run()` returns the carried value. Here it will assign the aggregation of both tasks results to the value `$users`.
 
-When the `Source` is no longer active and there is no more `Task`s to run the object will return.
+## Limitations
+
+### Signals
+
+Signals like `SIGINT`, `SIGTERM`, etc... that are normally handled via `$os->process()->signals()` is not yet supported. This may result in unwanted behaviours.
+
+### HTTP calls
+
+Currently HTTP calls are done via `curl` but it can't be integrated in the same loop as other streams. To allow the coordination of multiple tasks when doing HTTP calls the system use a timeout of `10ms` and switches between tasks at this max rate.
+
+To fix this limitation a new implementation entirely based on PHP streams needs to be created.
+
+Meanwhile if your goal is to make multiple concurrent HTTP calls you don't need this package. [`innmind/http-transport`](https://packagist.org/packages/innmind/http-transport) already support concurrent calls on it's own (without the limitation mentionned above).
+
+### SQL queries
+
+SQL queries executed via `$os->remote()->sql()` are still executed synchronously.
+
+To fix this limitation a new implementation entirely based on PHP streams needs to be created.
+
+### Number of tasks
+
+It seems that the current implementation of this package has a [limit of around 10K concurrent tasks](https://twitter.com/baptouuuu/status/1720092619496378741) before it starts slowing down drastically.
