@@ -3,49 +3,40 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle\Source;
 
-use Innmind\Mantle\{
-    Source,
-    Task,
-    Suspend,
-};
-use Innmind\Immutable\{
-    Sequence,
-    Maybe,
-};
+use Innmind\Mantle\Task;
+use Innmind\OperatingSystem\OperatingSystem;
+use Innmind\Immutable\Sequence;
 
-final class Predetermined implements Source
+final class Predetermined
 {
-    /** @var Sequence<callable(Suspend): void> */
+    /** @var Sequence<callable(OperatingSystem): void> */
     private Sequence $tasks;
 
     /**
-     * @param Sequence<callable(Suspend): void> $tasks
+     * @param Sequence<callable(OperatingSystem): void> $tasks
      */
     private function __construct(Sequence $tasks)
     {
         $this->tasks = $tasks;
     }
 
+    public function __invoke(
+        mixed $carry,
+        OperatingSystem $os,
+        Continuation $continuation,
+    ): Continuation {
+        return $continuation
+            ->launch($this->tasks->map(Task::of(...)))
+            ->terminate();
+    }
+
     /**
      * @no-named-arguments
      *
-     * @param callable(Suspend): void $tasks
+     * @param callable(OperatingSystem): void $tasks
      */
     public static function of(callable ...$tasks): self
     {
         return new self(Sequence::of(...$tasks));
-    }
-
-    public function emerge(mixed $carry, Sequence $active): array
-    {
-        $next = $this->tasks->map(Task::of(...));
-        $this->tasks = $this->tasks->clear();
-
-        return [$carry, $next];
-    }
-
-    public function active(): bool
-    {
-        return !$this->tasks->empty();
     }
 }

@@ -3,58 +3,46 @@ declare(strict_types = 1);
 
 namespace Innmind\Mantle;
 
-use Innmind\Mantle\Suspend\{
-    Strategy,
-    Asynchronous,
-};
-use Innmind\TimeContinuum\Clock;
+use Innmind\Mantle\Source\Continuation;
+use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\Immutable\Sequence;
 
 final class Forerunner
 {
-    private Clock $clock;
-    /** @var callable(): Strategy */
-    private $strategy;
+    private OperatingSystem $os;
 
-    /**
-     * @param callable(): Strategy $strategy
-     */
-    private function __construct(Clock $clock, callable $strategy)
+    private function __construct(OperatingSystem $os)
     {
-        $this->clock = $clock;
-        $this->strategy = $strategy;
+        $this->os = $os;
     }
 
     /**
      * @template C
+     * @template R
      *
      * @param C $carry
+     * @param callable(C, OperatingSystem, Continuation<C, R>, Sequence<R>): Continuation<C, R> $source
      *
      * @return C
      */
-    public function __invoke(mixed $carry, Source $source): mixed
+    public function __invoke(mixed $carry, callable $source): mixed
     {
-        /** @var Sequence<Task> */
-        $active = Sequence::of();
+        $tasks = Tasks::of(Source\Context::of(
+            Source::of($source),
+            $carry,
+        ));
 
-        while ($source->active() || !$active->empty()) {
-            [$carry, $emerged] = $source->emerge($carry, $active);
-            $active = $active
-                ->append($emerged)
-                ->flatMap(fn($task) => $task->continue(
-                    $this->clock,
-                    $this->strategy,
-                ));
+        while ($tasks->active()) {
+            $tasks = $tasks
+                ->continue($this->os)
+                ->wait(Wait::new($this->os));
         }
 
-        return $carry;
+        return $tasks->carry();
     }
 
-    /**
-     * @param ?callable(): Strategy $strategy
-     */
-    public static function of(Clock $clock, callable $strategy = null): self
+    public static function of(OperatingSystem $os): self
     {
-        return new self($clock, $strategy ?? Asynchronous::of(...));
+        return new self($os);
     }
 }
