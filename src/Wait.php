@@ -7,16 +7,20 @@ use Innmind\Mantle\Source\Context;
 use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\TimeContinuum\{
     ElapsedPeriod,
+    Earth,
     Earth\Period\Millisecond,
 };
 use Innmind\Stream\{
     Stream,
+    Readable,
+    Writable,
     Watch\Ready,
 };
 use Innmind\Immutable\{
     Sequence,
     Set,
     Maybe,
+    Predicate\Instance,
 };
 
 /**
@@ -31,19 +35,42 @@ final class Wait
     private Maybe $source;
     /** @var Sequence<Task\PendingActivity<R>> */
     private Sequence $tasks;
+    /** @var Maybe<ElapsedPeriod> */
+    private Maybe $timeout;
+    /** @var Set<Readable> */
+    private Set $forRead;
+    /** @var Set<Writable> */
+    private Set $forWrite;
+    /** @var Set<Readable> */
+    private Set $files;
+    private bool $poll;
 
     /**
      * @param Maybe<Task\PendingActivity<Context<C, R>>> $source
      * @param Sequence<Task\PendingActivity<R>> $tasks
+     * @param Maybe<ElapsedPeriod> $timeout
+     * @param Set<Readable> $forRead
+     * @param Set<Writable> $forWrite
+     * @param Set<Readable> $files
      */
     private function __construct(
         OperatingSystem $os,
         Maybe $source,
         Sequence $tasks,
+        Maybe $timeout,
+        Set $forRead,
+        Set $forWrite,
+        Set $files,
+        bool $poll,
     ) {
         $this->os = $os;
         $this->source = $source;
         $this->tasks = $tasks;
+        $this->timeout = $timeout;
+        $this->forRead = $forRead;
+        $this->forWrite = $forWrite;
+        $this->files = $files;
+        $this->poll = $poll;
     }
 
     /**
@@ -55,50 +82,12 @@ final class Wait
     public function __invoke(): array
     {
         $started = $this->os->clock()->now();
+        $shortestTimeout = match ($this->poll) {
+            true => Maybe::just(Earth\ElapsedPeriod::of(0)),
+            false => $this->timeout,
+        };
 
-        $shortestTimeout = $this
-            ->source
-            ->flatMap(static fn($source) => $source->action()->timeout());
-        $shortestTimeout = $this
-            ->tasks
-            ->map(static fn($task) => $task->action()->timeout())
-            ->reduce(
-                $shortestTimeout,
-                static fn(Maybe $shortestTimeout, Maybe $timeout) => $shortestTimeout
-                    ->flatMap(static fn(ElapsedPeriod $a) => $timeout->map(
-                        static fn(ElapsedPeriod $b) => match ($a->longerThan($b)) {
-                            true => $b,
-                            false => $a,
-                        },
-                    ))
-                    ->otherwise(static fn() => $timeout),
-            );
-        $forRead = $this
-            ->tasks
-            ->map(static fn($task) => $task->action()->forRead())
-            ->toSet()
-            ->flatMap(static fn($streams) => $streams)
-            ->merge(
-                $this
-                    ->source
-                    ->toSequence()
-                    ->toSet()
-                    ->flatMap(static fn($task) => $task->action()->forRead()),
-            );
-        $forWrite = $this
-            ->tasks
-            ->map(static fn($task) => $task->action()->forWrite())
-            ->toSet()
-            ->flatMap(static fn($streams) => $streams)
-            ->merge(
-                $this
-                    ->source
-                    ->toSequence()
-                    ->toSet()
-                    ->flatMap(static fn($task) => $task->action()->forWrite()),
-            );
-
-        if ($forRead->empty() && $forWrite->empty()) {
+        if ($this->forRead->empty() && $this->forWrite->empty()) {
             $_ = $shortestTimeout->match(
                 fn($shortestTimeout) => $this
                     ->os
@@ -118,13 +107,12 @@ final class Wait
             static fn($timeout) => $timeout,
             static fn() => null,
         );
-        /** @psalm-suppress InvalidArgument */
         $watch = $this->os->sockets()->watch($timeout);
-        $watch = $forRead->match(
+        $watch = $this->forRead->match(
             static fn($read, $rest) => $watch->forRead($read, ...$rest->toList()),
             static fn() => $watch,
         );
-        $watch = $forWrite->match(
+        $watch = $this->forWrite->match(
             static fn($write, $rest) => $watch->forWrite($write, ...$rest->toList()),
             static fn() => $watch,
         );
@@ -142,8 +130,8 @@ final class Wait
         // be flagged as EOF.
         // This hack SHOULD NOT pose any side effects, however if you land here
         // it may mean it does. In such case I have no idea how to fix it :/
-        $ready = $watch()->map(static fn($ready) => new Ready(
-            $ready->toRead()->merge($forRead->filter(self::isFile(...))),
+        $ready = $watch()->map(fn($ready) => new Ready(
+            $ready->toRead()->merge($this->files),
             $ready->toWrite(),
         ));
         $took = $this->os->clock()->now()->elapsedSince($started);
@@ -158,22 +146,59 @@ final class Wait
     {
         /** @var Maybe<Task\PendingActivity<Context<mixed, mixed>>> */
         $source = Maybe::nothing();
+        /** @var Maybe<ElapsedPeriod> */
+        $timeout = Maybe::nothing();
 
-        return new self($os, $source, Sequence::of());
+        return new self(
+            $os,
+            $source,
+            Sequence::of(),
+            $timeout,
+            Set::of(),
+            Set::of(),
+            Set::of(),
+            false,
+        );
     }
 
     /**
      * @template A
      * @template B
      *
-     * @param Maybe<Task\PendingActivity<Context<A, B>>> $source
+     * @param Maybe<Context<A, B>|Task\PendingActivity<Context<A, B>>> $source
      *
      * @return self<A, B>
      */
     public function withSource(Maybe $source): self
     {
-        /** @psalm-suppress InvalidArgument Force erase the type on purpose */
-        return new self($this->os, $source, $this->tasks);
+        $sourceTask = $source->keep(Instance::of(Task\PendingActivity::class));
+        $forRead = $sourceTask->match(
+            static fn($task) => $task->action()->forRead(),
+            static fn() => Set::of(),
+        );
+
+        /**
+         * @psalm-suppress MixedArgumentTypeCoercion Force erase the type on purpose
+         * @var self<A, B>
+         */
+        return new self(
+            $this->os,
+            $sourceTask,
+            $this->tasks,
+            $sourceTask->flatMap(static fn($source) => $source->action()->timeout()),
+            $forRead,
+            $sourceTask->match(
+                static fn($task) => $task->action()->forWrite(),
+                static fn() => Set::of(),
+            ),
+            $forRead->filter(self::isFile(...)),
+            $source
+                ->keep(Instance::of(Context::class))
+                ->match(
+                    static fn() => true, // poll the tasks to allow restarting the source as soon as possible
+                    static fn() => false,
+                ),
+        );
     }
 
     /**
@@ -183,7 +208,28 @@ final class Wait
      */
     public function with(Task\PendingActivity $task): self
     {
-        return new self($this->os, $this->source, $this->tasks->add($task));
+        $timeout = $task->action()->timeout();
+
+        return new self(
+            $this->os,
+            $this->source,
+            $this->tasks->add($task),
+            $this
+                ->timeout
+                ->flatMap(static fn($shortest) => $timeout->map(
+                    static fn($new) => match ($shortest->longerThan($new)) {
+                        true => $new,
+                        false => $shortest,
+                    },
+                ))
+                ->otherwise(static fn() => $timeout),
+            $this->forRead->merge($task->action()->forRead()),
+            $this->forWrite->merge($task->action()->forWrite()),
+            $this->files->merge(
+                $task->action()->forRead()->filter(self::isFile(...)),
+            ),
+            $this->poll,
+        );
     }
 
     /**

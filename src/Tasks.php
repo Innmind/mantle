@@ -151,11 +151,15 @@ final class Tasks
      */
     public function wait(Wait $wait): self
     {
-        /** @var Maybe<Task\PendingActivity<Context<C, R>>> */
+        /** @var Maybe<Context<C, R>|Task\PendingActivity<Context<C, R>>> */
         $source = $this
             ->source
             ->maybe()
-            ->keep(Instance::of(Task\PendingActivity::class));
+            ->keep(
+                Instance::of(Task\PendingActivity::class)->or(
+                    Instance::of(Context::class),
+                ),
+            );
         $wait = $wait->withSource($source);
         $partition = $this->all->partition(
             Instance::of(Task\PendingActivity::class),
