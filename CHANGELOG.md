@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Wait less time to restart the source by polling the tasks instead of waiting for them to be reactivated
+
 ## 2.0.0 - 2023-11-05
 
 ### Added

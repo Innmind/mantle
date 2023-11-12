@@ -7,6 +7,7 @@ use Innmind\Mantle\Source\Context;
 use Innmind\OperatingSystem\OperatingSystem;
 use Innmind\TimeContinuum\{
     ElapsedPeriod,
+    Earth,
     Earth\Period\Millisecond,
 };
 use Innmind\Stream\{
@@ -17,6 +18,7 @@ use Innmind\Immutable\{
     Sequence,
     Set,
     Maybe,
+    Predicate\Instance,
 };
 
 /**
@@ -31,6 +33,7 @@ final class Wait
     private Maybe $source;
     /** @var Sequence<Task\PendingActivity<R>> */
     private Sequence $tasks;
+    private bool $poll;
 
     /**
      * @param Maybe<Task\PendingActivity<Context<C, R>>> $source
@@ -40,10 +43,12 @@ final class Wait
         OperatingSystem $os,
         Maybe $source,
         Sequence $tasks,
+        bool $poll,
     ) {
         $this->os = $os;
         $this->source = $source;
         $this->tasks = $tasks;
+        $this->poll = $poll;
     }
 
     /**
@@ -55,24 +60,10 @@ final class Wait
     public function __invoke(): array
     {
         $started = $this->os->clock()->now();
-
-        $shortestTimeout = $this
-            ->source
-            ->flatMap(static fn($source) => $source->action()->timeout());
-        $shortestTimeout = $this
-            ->tasks
-            ->map(static fn($task) => $task->action()->timeout())
-            ->reduce(
-                $shortestTimeout,
-                static fn(Maybe $shortestTimeout, Maybe $timeout) => $shortestTimeout
-                    ->flatMap(static fn(ElapsedPeriod $a) => $timeout->map(
-                        static fn(ElapsedPeriod $b) => match ($a->longerThan($b)) {
-                            true => $b,
-                            false => $a,
-                        },
-                    ))
-                    ->otherwise(static fn() => $timeout),
-            );
+        $shortestTimeout = match ($this->poll) {
+            true => Maybe::just(Earth\ElapsedPeriod::of(0)),
+            false => $this->shortestTimeout(),
+        };
         $forRead = $this
             ->tasks
             ->map(static fn($task) => $task->action()->forRead())
@@ -159,21 +150,34 @@ final class Wait
         /** @var Maybe<Task\PendingActivity<Context<mixed, mixed>>> */
         $source = Maybe::nothing();
 
-        return new self($os, $source, Sequence::of());
+        return new self($os, $source, Sequence::of(), false);
     }
 
     /**
      * @template A
      * @template B
      *
-     * @param Maybe<Task\PendingActivity<Context<A, B>>> $source
+     * @param Maybe<Context<A, B>|Task\PendingActivity<Context<A, B>>> $source
      *
      * @return self<A, B>
      */
     public function withSource(Maybe $source): self
     {
-        /** @psalm-suppress InvalidArgument Force erase the type on purpose */
-        return new self($this->os, $source, $this->tasks);
+        /**
+         * @psalm-suppress MixedArgumentTypeCoercion Force erase the type on purpose
+         * @var self<A, B>
+         */
+        return new self(
+            $this->os,
+            $source->keep(Instance::of(Task\PendingActivity::class)),
+            $this->tasks,
+            $source
+                ->keep(Instance::of(Context::class))
+                ->match(
+                    static fn() => true, // poll the tasks to allow restarting the source as soon as possible
+                    static fn() => false,
+                ),
+        );
     }
 
     /**
@@ -183,7 +187,12 @@ final class Wait
      */
     public function with(Task\PendingActivity $task): self
     {
-        return new self($this->os, $this->source, $this->tasks->add($task));
+        return new self(
+            $this->os,
+            $this->source,
+            $this->tasks->add($task),
+            $this->poll,
+        );
     }
 
     /**
@@ -208,6 +217,31 @@ final class Wait
         ));
 
         return [$source, $tasks];
+    }
+
+    /**
+     * @return Maybe<ElapsedPeriod>
+     */
+    private function shortestTimeout(): Maybe
+    {
+        $shortestTimeout = $this
+            ->source
+            ->flatMap(static fn($source) => $source->action()->timeout());
+
+        return $this
+            ->tasks
+            ->map(static fn($task) => $task->action()->timeout())
+            ->reduce(
+                $shortestTimeout,
+                static fn(Maybe $shortestTimeout, Maybe $timeout) => $shortestTimeout
+                    ->flatMap(static fn(ElapsedPeriod $a) => $timeout->map(
+                        static fn(ElapsedPeriod $b) => match ($a->longerThan($b)) {
+                            true => $b,
+                            false => $a,
+                        },
+                    ))
+                    ->otherwise(static fn() => $timeout),
+            );
     }
 
     private static function isFile(Stream $stream): bool
