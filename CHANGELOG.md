@@ -6,6 +6,10 @@
 
 - Wait less time to restart the source by polling the tasks instead of waiting for them to be reactivated
 
+### Fixed
+
+- Takes less time and memory to compute the timeout and streams to watch
+
 ## 2.0.0 - 2023-11-05
 
 ### Added
