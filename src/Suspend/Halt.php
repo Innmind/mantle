@@ -12,7 +12,6 @@ use Innmind\TimeWarp\PeriodToMilliseconds;
 use Innmind\Stream\{
     Readable,
     Writable,
-    Watch\Ready,
 };
 use Innmind\Immutable\{
     Maybe,
