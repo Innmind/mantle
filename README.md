@@ -4,6 +4,9 @@
 [![codecov](https://codecov.io/gh/innmind/mantle/branch/develop/graph/badge.svg)](https://codecov.io/gh/innmind/mantle)
 [![Type Coverage](https://shepherd.dev/github/innmind/mantle/coverage.svg)](https://shepherd.dev/github/innmind/mantle)
 
+> [!IMPORTANT]
+> This package has been replaced by <https://github.com/Innmind/async>.
+
 Abstraction on top of `Fiber`s to coordinate multiple tasks asynchronously.
 
 The goal is to easily move the execution of any code built using [`innmind/operating-system`](https://packagist.org/packages/innmind/operating-system) from a synchronous context to an async one. This means that it's easier to experiment running a piece of code asynchronously and then move back if the experiment is not successful. This also means that you can test each part of an asynchronous system synchronously.
